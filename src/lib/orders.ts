@@ -4,6 +4,7 @@ import * as schema from "@/db/schema";
 import { auditLog, events, orderItems, orders, paymentEvents, refunds, seatHolds, seats, tickets } from "@/db/schema";
 import { signTicket } from "@/lib/crypto";
 import { withRetries, type PaymentEvent, type PaymentGateway } from "@/lib/payments/gateway";
+import { paymentsBreaker, type CircuitBreaker } from "@/lib/payments/breaker";
 
 type DB = PostgresJsDatabase<typeof schema>;
 
@@ -24,7 +25,7 @@ export class CheckoutError extends Error {
 export async function startCheckout(
   db: DB,
   gw: PaymentGateway,
-  input: { userId: string; eventId: string; idemKey: string; now?: Date },
+  input: { userId: string; eventId: string; idemKey: string; now?: Date; breaker?: CircuitBreaker },
 ): Promise<{ orderId: string; clientSecret: string | null; amountMinor: number; gateway: PaymentGateway["name"] }> {
   const now = input.now ?? new Date();
 
@@ -57,12 +58,16 @@ export async function startCheckout(
   const [event] = await db.select({ title: events.title }).from(events).where(eq(events.id, order.eventId));
   let payment;
   try {
-    payment = await withRetries(() => gw.createPayment({
+    payment = await (input.breaker ?? paymentsBreaker).run(() => withRetries(() => gw.createPayment({
       orderId: order.id, amountMinor: order.amountCents, currency: "inr", idempotencyKey: `pi:${order.id}`,
       description: `TicketRush · ${event?.title ?? "tickets"}`,
-    }));
+    })));
   } catch {
-    // The hold and order remain; the buyer can retry and will get the same payment.
+    // The hold and order remain, and the hold is extended so an outage doesn't cost the buyer
+    // their seats (capped at 30 min after the original expiry). Retrying returns the same payment.
+    const extendTo = new Date(Math.min(now.getTime() + 5 * 60_000, order.holdExpiresAt.getTime() + 30 * 60_000));
+    await db.update(seatHolds).set({ expiresAt: extendTo })
+      .where(and(eq(seatHolds.holderId, order.userId), eq(seatHolds.eventId, order.eventId), sql`${seatHolds.expiresAt} < ${extendTo.toISOString()}::timestamp`));
     throw new CheckoutError("GATEWAY_DOWN", "Payments are briefly unavailable. Your seats are still held, so try again in a moment.");
   }
   if (!order.gatewayRef) {
