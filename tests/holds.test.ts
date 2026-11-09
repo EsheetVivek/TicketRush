@@ -32,9 +32,12 @@ run("seat holds", () => {
     seatIds = (await db.select({ id: schema.seats.id }).from(schema.seats).where(eq(schema.seats.eventId, CONCERT))).map((s) => s.id);
     indieSeat = (await db.select({ id: schema.seats.id }).from(schema.seats).where(eq(schema.seats.eventId, INDIE)).limit(1))[0].id;
     expect(seatIds.length).toBe(500);
+    // These tests are about holds, not the waiting room (covered in queue.test.ts).
+    await db.update(schema.events).set({ queueEnabled: false }).where(eq(schema.events.id, CONCERT));
   });
   beforeEach(async () => { await db.execute(sql`delete from seat_holds`); });
   afterAll(async () => {
+    await db.update(schema.events).set({ queueEnabled: true }).where(eq(schema.events.id, CONCERT));
     await db.execute(sql`delete from seat_holds`);
     await db.execute(sql`delete from users where email like '%@test.local'`);
     await client.end();

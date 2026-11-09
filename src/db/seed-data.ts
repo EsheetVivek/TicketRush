@@ -1,10 +1,11 @@
 /** Fixed IDs so seeding is idempotent across deploys. Prices are in minor units (paise). */
-export const SEED_EVENTS = [
+export const SEED_EVENTS: { id: string; title: string; venue: string; startsAt: Date; queue?: boolean; sections: { name: string; rows: string; perRow: number; priceCents: number }[] }[] = [
   {
     id: "6f1c1d0e-5a3b-4c55-9a0e-6b2d1e000001",
     title: "Monsoon Beats Live",
     venue: "NSCI Dome, Mumbai",
     startsAt: new Date("2027-01-23T14:00:00Z"),
+    queue: true, // the big drop goes through the waiting room
     sections: [
       { name: "Platinum", rows: "ABCDE", perRow: 20, priceCents: 499900 },
       { name: "Gold", rows: "FGHIJKLMNO", perRow: 20, priceCents: 299900 },

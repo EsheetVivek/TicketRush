@@ -11,7 +11,7 @@ const holdBody = z.object({
   seatIds: z.array(z.uuid()).min(1).max(MAX_SEATS_PER_HOLD),
 }).strict(); // unknown fields (e.g. a client-sent price) are rejected, not ignored
 
-const STATUS: Record<HoldError["code"], number> = { INVALID_REQUEST: 400, INVALID_SEATS: 400, NOT_ON_SALE: 409, SOLD: 409, HELD: 409 };
+const STATUS: Record<HoldError["code"], number> = { INVALID_REQUEST: 400, INVALID_SEATS: 400, NOT_ON_SALE: 409, SOLD: 409, HELD: 409, QUEUE: 403 };
 
 export async function GET(req: Request) {
   const session = await auth();

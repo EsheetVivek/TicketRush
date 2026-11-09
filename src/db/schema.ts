@@ -1,5 +1,5 @@
 import {
-  pgTable, text, timestamp, integer, uuid, primaryKey, unique, jsonb, index, pgEnum,
+  pgTable, text, timestamp, integer, uuid, primaryKey, unique, jsonb, index, pgEnum, boolean, bigserial,
 } from "drizzle-orm/pg-core";
 
 /* ---------- Auth.js tables (database sessions) ---------- */
@@ -52,6 +52,9 @@ export const events = pgTable("events", {
   startsAt: timestamp("starts_at").notNull(),
   onSaleAt: timestamp("on_sale_at").notNull(),
   status: text("status").notNull().default("draft"), // draft | on_sale | sold_out | cancelled
+  queueEnabled: boolean("queue_enabled").notNull().default(false),
+  queueRatePerMin: integer("queue_rate_per_min").notNull().default(300),
+  queueBurst: integer("queue_burst").notNull().default(100),
 });
 
 export const seats = pgTable("seats", {
@@ -145,3 +148,15 @@ export const mockPayments = pgTable("mock_payments", {
   refundIdemKey: text("refund_idem_key").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+/**
+ * Waiting room. Position comes from a sequence, so order is strictly first come, first served.
+ * Admission is computed, not stored: everyone whose rank is within
+ * burst + rate × minutes-since-on-sale is admitted. No release job can fall behind or crash.
+ */
+export const queueEntries = pgTable("queue_entries", {
+  eventId: uuid("event_id").notNull().references(() => events.id),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  position: bigserial("position", { mode: "number" }).notNull(),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.eventId, t.userId] }), index().on(t.eventId, t.position)]);

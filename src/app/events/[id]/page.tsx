@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { events } from "@/db/schema";
 import { when } from "@/lib/format";
-import { SeatPicker } from "@/components/seat-picker";
+import { EventGate } from "@/components/waiting-room";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,7 +19,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">{when(event.startsAt)}</p>
       <h1 className="mt-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{event.title}</h1>
       <p className="mt-2 text-lg text-muted">{event.venue}</p>
-      <SeatPicker eventId={event.id} signedIn={!!session?.user} />
+      <EventGate eventId={event.id} signedIn={!!session?.user} queueEnabled={event.queueEnabled} />
     </main>
   );
 }

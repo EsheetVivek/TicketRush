@@ -2,13 +2,14 @@ import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/db/schema";
 import { events, seatHolds, seats, tickets } from "@/db/schema";
+import { queueStatus } from "@/lib/queue";
 
 type DB = PostgresJsDatabase<typeof schema>;
 
 export const MAX_SEATS_PER_HOLD = 6;
 export const HOLD_TTL_SECONDS = 600;
 
-export type HoldErrorCode = "INVALID_REQUEST" | "INVALID_SEATS" | "NOT_ON_SALE" | "SOLD" | "HELD";
+export type HoldErrorCode = "INVALID_REQUEST" | "INVALID_SEATS" | "NOT_ON_SALE" | "SOLD" | "HELD" | "QUEUE";
 
 export class HoldError extends Error {
   constructor(public code: HoldErrorCode, message: string, public seatIds: string[] = []) {
@@ -42,6 +43,10 @@ export async function acquireHold(
   const now = input.now ?? new Date();
   const expiresAt = new Date(now.getTime() + (input.ttlSeconds ?? HOLD_TTL_SECONDS) * 1000);
   const holdToken = crypto.randomUUID();
+
+  // Waiting room is enforced here on the server, so nobody can skip the line by calling the API directly.
+  const q = await queueStatus(db, { eventId: input.eventId, userId: input.userId, now });
+  if (!q.admitted) throw new HoldError("QUEUE", q.joined ? "You're still in the waiting room." : "Join the waiting room first.");
 
   return db.transaction(async (tx) => {
     const [event] = await tx.select({ status: events.status }).from(events).where(eq(events.id, input.eventId));
