@@ -29,18 +29,28 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
     if (r.ok) setHold((await r.json()).hold);
   }, [eventId, signedIn]);
 
+  // Poll availability; first load runs on the next tick so state updates come from a callback.
   useEffect(() => {
-    loadSeats();
-    loadHold();
-    const t = setInterval(loadSeats, POLL_MS);
-    return () => clearInterval(t);
+    const first = setTimeout(() => { void loadSeats(); void loadHold(); }, 0);
+    const t = setInterval(() => void loadSeats(), POLL_MS);
+    return () => { clearTimeout(first); clearInterval(t); };
   }, [loadSeats, loadHold]);
 
+  // Hold countdown; releases the hold in the UI when it expires.
   useEffect(() => {
     if (!hold) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const expires = new Date(hold.expiresAt).getTime();
+    const t = setInterval(() => {
+      const n = Date.now();
+      setNow(n);
+      if (n >= expires) {
+        setHold(null);
+        setMessage({ tone: "info", text: "Your hold expired and the seats were released." });
+        void loadSeats();
+      }
+    }, 1000);
     return () => clearInterval(t);
-  }, [hold]);
+  }, [hold, loadSeats]);
 
   const mine = useMemo(() => new Set(hold?.seatIds ?? []), [hold]);
   const byId = useMemo(() => new Map((seats ?? []).map((s) => [s.id, s])), [seats]);
@@ -56,13 +66,6 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   }, [seats]);
 
   const remainingS = hold ? Math.max(0, Math.floor((new Date(hold.expiresAt).getTime() - now) / 1000)) : 0;
-  useEffect(() => {
-    if (hold && remainingS === 0) {
-      setHold(null);
-      setMessage({ tone: "info", text: "Your hold expired and the seats were released." });
-      loadSeats();
-    }
-  }, [hold, remainingS, loadSeats]);
 
   function toggle(id: string) {
     setMessage(null);

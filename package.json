@@ -16,14 +16,14 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
-    "drizzle-orm": "^0.36.4",
+    "drizzle-orm": "^0.45.4",
     "geist": "^1.9.2",
-    "next": "15.5.29",
-    "next-auth": "^5.0.0-beta.25",
+    "next": "^16.4.5",
+    "next-auth": "^5.0.0-beta.32",
     "postgres": "^3.4.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -31,9 +31,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "^0.28.1",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
-    "eslint-config-next": "15.5.29",
+    "eslint-config-next": "^16.4.5",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
