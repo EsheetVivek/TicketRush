@@ -217,7 +217,7 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
                   {busy ? "Holding…" : `Hold ${selected.length || ""} seat${selected.length === 1 ? "" : "s"}`}
                 </button>
               ) : (
-                <a href={`/api/auth/signin?callbackUrl=/events/${eventId}`}
+                <a href={`/signin?callbackUrl=/events/${eventId}`}
                   className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full bg-ink font-semibold text-paper hover:opacity-90">
                   Sign in to hold seats
                 </a>

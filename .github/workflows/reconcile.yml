@@ -19,4 +19,8 @@ jobs:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then echo "Secrets not set yet, skipping."; exit 0; fi
-          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/reconcile"
+          url="${APP_URL%/}/api/cron/reconcile"
+          code=$(curl -sS --max-time 90 -o body.json -w "%{http_code}" -H "Authorization: Bearer $CRON_SECRET" "$url")
+          echo "HTTP $code"; cat body.json; echo
+          # A redirect (e.g. to Vercel's login page) or any non-200 is a failure, not a silent success.
+          [ "$code" = "200" ] || { echo "::error::Reconciler returned HTTP $code. Check APP_URL is the production domain and CRON_SECRET matches Vercel."; exit 1; }

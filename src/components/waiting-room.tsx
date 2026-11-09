@@ -38,7 +38,7 @@ export function EventGate({ eventId, signedIn, queueEnabled }: { eventId: string
         <>
           <h2 className="mt-3 text-3xl font-bold tracking-tight">This drop is busy, so there&apos;s a line.</h2>
           <p className="mt-3 max-w-xl text-muted">Sign in to join. Places are first come, first served, and refreshing never loses your spot.</p>
-          <a href={`/api/auth/signin?callbackUrl=/events/${eventId}`} className="mt-6 inline-flex min-h-11 items-center rounded-full bg-ink px-6 font-semibold text-paper hover:opacity-90">Sign in to join the line</a>
+          <a href={`/signin?callbackUrl=/events/${eventId}`} className="mt-6 inline-flex min-h-11 items-center rounded-full bg-ink px-6 font-semibold text-paper hover:opacity-90">Sign in to join the line</a>
         </>
       ) : !q ? (
         <div className="mt-4 h-24 animate-pulse rounded-xl bg-paper" aria-label="Joining the line" />

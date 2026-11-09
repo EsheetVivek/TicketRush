@@ -23,7 +23,7 @@ const COPY: Record<string, { title: string; body: string }> = {
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   const { id } = await params;
-  if (!session?.user?.id) redirect(`/api/auth/signin?callbackUrl=/orders/${id}`);
+  if (!session?.user?.id) redirect(`/signin?callbackUrl=/orders/${id}`);
   if (!z.uuid().safeParse(id).success) notFound();
 
   // Ownership check in the query itself: another user's order looks exactly like a missing one.

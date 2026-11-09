@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { auth, signIn, signOut } from "@/auth";
+import { auth, signOut } from "@/auth";
 
 export async function Header() {
   const session = await auth();
@@ -16,9 +16,7 @@ export async function Header() {
             <button type="submit" className="min-h-11 rounded-full border border-line px-4 font-medium hover:bg-paper">Sign out</button>
           </form>
         ) : (
-          <form action={async () => { "use server"; await signIn("github"); }}>
-            <button type="submit" className="min-h-11 rounded-full bg-ink px-4 text-sm font-semibold text-paper hover:opacity-90">Sign in with GitHub</button>
-          </form>
+          <Link href="/signin" className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-paper hover:opacity-90">Sign in</Link>
         )}
       </div>
     </header>
