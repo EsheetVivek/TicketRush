@@ -11,7 +11,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "vercel-build": "drizzle-kit migrate && next build"
+    "vercel-build": "drizzle-kit migrate && tsx scripts/seed.ts && next build",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
@@ -34,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^2.1.9"
   }

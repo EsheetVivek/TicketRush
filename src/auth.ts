@@ -13,6 +13,13 @@ const nextAuth = NextAuth({
   session: { strategy: "database", maxAge: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
   providers: [GitHub],
   trustHost: true,
+  callbacks: {
+    // Expose the user id to server code; nothing else from the DB user is sent to the browser.
+    session({ session, user }) {
+      session.user.id = user.id;
+      return session;
+    },
+  },
 });
 export const { auth, signIn, signOut } = nextAuth;
 export const { GET, POST } = nextAuth.handlers;

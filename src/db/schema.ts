@@ -118,3 +118,16 @@ export const auditLog = pgTable("audit_log", {
   meta: jsonb("meta"),
   at: timestamp("at").notNull().defaultNow(),
 }, (t) => [index().on(t.target, t.at)]);
+
+/**
+ * Seat holds (Postgres implementation). seat_id is the primary key, so a seat can have at most
+ * one hold row; a multi-seat hold is inserted in one transaction and is all-or-nothing.
+ * A Redis implementation can replace this for lower latency; Postgres stays the source of truth.
+ */
+export const seatHolds = pgTable("seat_holds", {
+  seatId: uuid("seat_id").primaryKey().references(() => seats.id),
+  eventId: uuid("event_id").notNull().references(() => events.id),
+  holderId: text("holder_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  holdToken: uuid("hold_token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (t) => [index().on(t.holderId, t.eventId), index().on(t.eventId, t.expiresAt)]);
