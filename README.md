@@ -14,7 +14,7 @@ Docs: [Requirements](docs/01-PRD.md) · [System design](docs/02-SYSTEM-DESIGN.md
 |---|---|
 | 1. Skeleton: Next.js, schema, auth, CI, Vercel | Done · deployed |
 | 2. Events, seat map, holds | Done · [concurrency result](docs/results/m2-seat-holds.md) |
-| 3. Orders, payments, webhooks | Not started |
+| 3. Orders, payments, webhooks | Done · [verified scenarios](docs/results/m3-payments.md) |
 | 4. Refunds, reconciler, circuit breaker | Not started |
 | 5. Waiting room | Not started |
 | 6. Concurrency, fault-injection and security tests | Not started |

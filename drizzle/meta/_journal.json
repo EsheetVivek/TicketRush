@@ -15,6 +15,13 @@
       "when": 1794229579254,
       "tag": "0001_futuristic_garia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794230218807,
+      "tag": "0002_mighty_sandman",
+      "breakpoints": true
     }
   ]
 }

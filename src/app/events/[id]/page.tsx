@@ -9,7 +9,7 @@ import { SeatPicker } from "@/components/seat-picker";
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!z.string().uuid().safeParse(id).success) notFound();
+  if (!z.uuid().safeParse(id).success) notFound();
   const [event] = await db.select().from(events).where(eq(events.id, id));
   if (!event) notFound();
   const session = await auth();

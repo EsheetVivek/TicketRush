@@ -131,3 +131,17 @@ export const seatHolds = pgTable("seat_holds", {
   holdToken: uuid("hold_token").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 }, (t) => [index().on(t.holderId, t.eventId), index().on(t.eventId, t.expiresAt)]);
+
+/**
+ * Backing store for the mock gateway (tests, load tests and the demo when no Stripe keys are set).
+ * Lives in Postgres so it behaves consistently across serverless instances.
+ */
+export const mockPayments = pgTable("mock_payments", {
+  ref: text("ref").primaryKey(),
+  idemKey: text("idem_key").notNull().unique(),
+  orderId: text("order_id").notNull(),
+  amountMinor: integer("amount_minor").notNull(),
+  status: text("status").notNull().default("requires_payment"),
+  refundIdemKey: text("refund_idem_key").unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

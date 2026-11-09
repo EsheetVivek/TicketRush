@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { money } from "@/lib/format";
+import { PayPanel } from "@/components/pay-panel";
 
 type Status = "available" | "held" | "sold";
 interface Seat { id: string; section: string; row: string; number: number; priceCents: number; status: Status }
@@ -194,7 +195,7 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
                 ))}
               </ul>
               <div className="mt-4 flex justify-between border-t border-line pt-4 font-semibold"><span>Total</span><span>{money(holdTotal)}</span></div>
-              <button type="button" disabled className="mt-4 min-h-11 w-full rounded-full bg-ink font-semibold text-paper opacity-50">Pay (coming in milestone 3)</button>
+              <PayPanel eventId={eventId} holdToken={hold.holdToken} />
               <button type="button" onClick={release} disabled={busy} className="mt-2 min-h-11 w-full rounded-full border border-line font-medium hover:bg-paper">Release seats</button>
             </>
           ) : (
