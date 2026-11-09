@@ -27,7 +27,7 @@ In: sign-in (email magic link + GitHub), event list and event page, seat map wit
 Out (v1): real money, resale marketplace, mobile apps, multiple currencies, dynamic pricing.
 
 ## 5. Non-functional requirements
-- **Payments:** Stripe test mode only. Card data never touches our servers (Stripe Elements → PCI SAQ-A scope).
+- **Payments:** test mode only (Stripe by default, Razorpay supported via the same gateway adapter). Card data never touches our servers (Stripe Elements → PCI SAQ-A scope).
 - **Security:** HTTPS only (HSTS), httpOnly/Secure/SameSite cookies, CSRF protection, server-side authorization on every request, rate limits per IP and per user, signed webhooks, secrets only in Vercel env, PII encrypted at the field level.
 - **Reliability:** every money-moving operation is idempotent; the database is the source of truth.
 - **Performance:** event pages cached at the edge; checkout API p95 < 500 ms at 3k concurrent.
@@ -40,4 +40,5 @@ All five goals have a passing automated test or a published measured result, the
 ## 7. Open decisions for Esheet
 1. Approve scope v1 as above.
 2. Event type to seed: one big concert (reserved seating, 500 seats) + one general-admission event.
-3. Budget ceiling for the final load test (free tiers will throttle a full 10k run): suggested max $10.
+3. ~~Budget~~ Decided: $0. Free tiers only (Vercel Hobby, Neon free, Upstash free, GitHub Actions). The full 10k load test runs in GitHub Actions against the app plus local Postgres and Redis containers, so no paid infrastructure is needed.
+4. Payment gateway: Stripe test mode, with Razorpay test mode as a drop-in alternative behind the same adapter.

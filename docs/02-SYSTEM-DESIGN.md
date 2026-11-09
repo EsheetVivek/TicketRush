@@ -22,7 +22,7 @@ flowchart LR
 | Region | Functions in Singapore (`sin1`), DB in the same region | Keep function → DB latency in single-digit ms |
 | Database | Neon Postgres (pooled connections) | Transactions, row locks and unique constraints are what make money correct |
 | Cache / coordination | Upstash Redis | Atomic seat holds, waiting-room queue, rate limiting, all in < 2 ms |
-| Payments | Stripe PaymentIntents + Elements (test mode) | Idempotency keys, signed webhooks, card data never on our servers |
+| Payments | `PaymentGateway` adapter: Stripe PaymentIntents + Elements (default) or Razorpay Orders (test mode) | Idempotency keys, signed webhooks, card data never on our servers; gateway is swappable |
 | Jobs | Vercel Cron → reconciler endpoint | Catches anything a webhook missed |
 | Auth | Auth.js with database sessions | Opaque session ID in an httpOnly cookie, revocable server-side |
 
@@ -89,7 +89,8 @@ Order states: `pending → paid → ticketed` or `pending → expired`, and `pai
 - **Unit + integration:** state machine, idempotency, authorization (Vitest, real Postgres in CI).
 - **Concurrency:** 3,000 parallel buyers for 500 seats → assert exactly 500 tickets, zero duplicates.
 - **Fault injection:** a gateway adapter that can time out, return 500s or drop webhooks at a set rate → assert zero orphaned charges after reconciliation.
-- **Load (k6):** 10k virtual users browsing, 3k concurrent checkouts. Note: Stripe test mode is rate-limited, so the high-volume run uses a Stripe-compatible mock (`stripe-mock`) behind the same adapter; correctness with the real Stripe test API is proven separately at lower volume. Both are reported honestly.
+- **Load (k6), $0:** runs in GitHub Actions (free for public repos). The workflow starts the production build of the app with Postgres and Redis service containers and a gateway mock behind the same adapter, then drives 10k virtual users browsing and 3k concurrent checkouts with fault injection. Gateway test modes (Stripe, Razorpay) are rate-limited, so the real test APIs are exercised separately at low volume for correctness. Results from both are published as-is, along with the runner's hardware so the numbers are read in context.
+- **Live smoke test:** a small k6 run against the deployed Vercel app, kept within free-tier limits.
 - **Security:** OWASP ZAP baseline scan, tampering tests, dependency audit.
 
 ## 7. Build order (milestones)
