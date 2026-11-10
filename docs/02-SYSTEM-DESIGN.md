@@ -6,7 +6,7 @@
 flowchart LR
   B[Browser · Next.js UI] -->|HTTPS · TLS 1.3| E[Vercel Edge · CDN · WAF · rate limit]
   E -->|cached| S[Static event pages]
-  E --> A[API routes · Node functions · sin1]
+  E --> A[API routes · Node functions · iad1]
   A --> R[(Upstash Redis · holds · queue · rate limits)]
   A --> P[(Neon Postgres · orders · tickets · ledger)]
   A -->|Idempotency-Key| G[Stripe API · test mode]
@@ -19,7 +19,7 @@ flowchart LR
 | Layer | Choice | Why |
 |---|---|---|
 | App | Next.js (App Router) on Vercel, Node runtime | One codebase, edge caching for read-heavy pages, serverless scale-out for spikes |
-| Region | Functions in Singapore (`sin1`), DB in the same region | Keep function → DB latency in single-digit ms |
+| Region | Functions in Washington DC (`iad1`), next to the Neon database (`us-east-1`) | Keep function → DB latency in single-digit ms |
 | Database | Neon Postgres (pooled connections) | Transactions, row locks and unique constraints are what make money correct |
 | Cache / coordination | Upstash Redis | Atomic seat holds, waiting-room queue, rate limiting, all in < 2 ms |
 | Payments | `PaymentGateway` adapter: Stripe PaymentIntents + Elements (default) or Razorpay Orders (test mode) | Idempotency keys, signed webhooks, card data never on our servers; gateway is swappable |
@@ -88,7 +88,7 @@ Order states: `pending → paid → ticketed` or `pending → expired`, and `pai
 ### Implementation notes (milestone 5b)
 - Seat holds currently live in Postgres (`seat_holds`, primary key on `seat_id`) rather than Redis: one SQL statement checks waiting-room admission, event status, seat validity and sold seats, releases the buyer's previous and any expired holds, and inserts the new hold. A single statement is atomic, so a primary-key conflict on any seat rolls back the whole hold.
 - Checkout creates the order, its items and the audit entry in one statement; ticket issue, the status change, hold release and audit entry are one statement inside the order-locking transaction. Round trips per request: hold 2, checkout 4, payment → tickets 8 (measured in `docs/results/m5b-speed.md`).
-- The function region (`sin1`) must match the database region; `/api/health` reports the round-trip time.
+- The function region (`iad1`) must match the database region; `/api/health` reports the round-trip time.
 
 ## 6. Testing plan
 - **Unit + integration:** state machine, idempotency, authorization (Vitest, real Postgres in CI).

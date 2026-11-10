@@ -121,3 +121,10 @@ node scripts/latency-proxy.mjs 5434 5433 5
 ```
 
 The bench script refuses to run against anything but a local database because it deletes orders.
+
+## Update 2026-11-10: region mismatch found and fixed
+
+`/api/health` on production showed the functions in `sin1` (Singapore) but the Neon database in
+`us-east-1`: every query cost about 220 ms. Functions now run in `iad1` (same AWS region as the
+database). Public pages (`/`, `/events`, `/how-it-works`) are now served from the CDN cache instead
+of rendering per request.
