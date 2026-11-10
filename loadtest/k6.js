@@ -53,7 +53,7 @@ const timeToTicket = new Trend("time_to_ticket_ms", true);
 
 export function browse() {
   const ip = `10.1.${Math.floor(exec.vu.idInTest / 250)}.${exec.vu.idInTest % 250}`;
-  const h = { headers: { "x-forwarded-for": ip }, tags: { step: "browse" } };
+  const h = { headers: { "x-forwarded-for": ip }, tags: { step: "browse" }, responseType: "none" };
   const r1 = http.get(`${BASE}/`, h);
   check(r1, { "home 200": (r) => r.status === 200 });
   sleep(1 + Math.random() * 2);

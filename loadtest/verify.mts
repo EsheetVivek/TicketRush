@@ -1,6 +1,6 @@
 /**
- * After the load test: run the reconciler (as if 31 minutes had passed, so abandoned checkouts and
- * lost webhooks are all settled), then check the money and seat invariants directly in Postgres.
+ * After the load test: run the reconciler as if 41 minutes had passed (10-minute hold + the 30-minute
+ * grace the reconciler gives a pending payment), so abandoned checkouts and lost webhooks are all settled, then check the money and seat invariants directly in Postgres.
  * Writes loadtest/verify.json and exits non-zero if any invariant fails.
  */
 import { writeFileSync } from "node:fs";
@@ -13,7 +13,7 @@ import { SEED_EVENTS } from "../src/db/seed-data.ts";
 const EVENT = SEED_EVENTS[0].id;
 const q = async <T>(s: ReturnType<typeof sql>) => (await db.execute(s)) as unknown as T[];
 
-const report = await reconcile(db, gateway(), new Date(Date.now() + 31 * 60_000));
+const report = await reconcile(db, gateway(), new Date(Date.now() + 41 * 60_000));
 const [counts] = await q<Record<string, number>>(sql`
   select
     (select count(*)::int from seats where event_id = ${EVENT}) as seats,

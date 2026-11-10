@@ -39,7 +39,7 @@ jobs:
       - run: NODE_ENV=production npm run build
       - name: Runner hardware
         run: |
-          { echo "## Runner"; echo; echo "- CPU: $(nproc) × $(lscpu | grep 'Model name' | sed 's/Model name:\s*//')"; echo "- RAM: $(free -h | awk '/Mem:/{print $2}')"; } | tee -a "$GITHUB_STEP_SUMMARY" > loadtest-runner.md
+          nproc; lscpu | grep "Model name"; free -h | head -2
       - name: Create buyers and open the drop
         run: npx tsx loadtest/setup.mts ${{ inputs.buyers }}
       - name: Start 3 app instances behind nginx
@@ -62,7 +62,7 @@ jobs:
         run: npx tsx loadtest/verify.mts
       - name: Summarise
         if: always()
-        run: node loadtest/summarise.mjs >> "$GITHUB_STEP_SUMMARY"
+        run: node loadtest/summarise.mjs | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -70,5 +70,4 @@ jobs:
           path: |
             loadtest/summary.json
             loadtest/verify.json
-            loadtest-runner.md
             app-*.log

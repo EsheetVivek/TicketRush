@@ -53,6 +53,11 @@ run("security: attacks fail safely", () => {
   });
 
   afterAll(async () => {
+    const mine = sql`(select id from orders where user_id like ${`e2e-${tag}-%`})`;
+    await sql`delete from tickets where order_id in ${mine}`;
+    await sql`delete from order_items where order_id in ${mine}`;
+    await sql`delete from refunds where order_id in ${mine}`;
+    await sql`delete from orders where user_id like ${`e2e-${tag}-%`}`;
     await sql`delete from users where id like ${`e2e-${tag}-%`}`;
     await sql.end();
   });
