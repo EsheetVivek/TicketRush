@@ -26,6 +26,11 @@ for (let i = 0; i < n; i += 1000) {
 const burst = Number(process.env.QUEUE_BURST ?? 100000);
 const rate = Number(process.env.QUEUE_RATE_PER_MIN ?? 300);
 await sql`update events set on_sale_at = now(), status = 'on_sale', queue_burst = ${burst}, queue_rate_per_min = ${rate} where id = ${SEED_EVENTS[0].id}`;
+// An organizer account; k6 uses it to press "Start a drop" the moment the buyers arrive.
+const orgToken = randomBytes(24).toString("hex");
+await sql`insert into users (id, email, name) values ('lt-organizer', 'organizer@load.test', 'Organizer') on conflict do nothing`;
+await sql`insert into sessions (session_token, user_id, expires) values (${orgToken}, 'lt-organizer', ${new Date(Date.now() + 6 * 3600_000)})`;
 writeFileSync("loadtest/.tokens.json", JSON.stringify(sessions.map((s) => s.session_token)));
+writeFileSync("loadtest/.organizer.json", JSON.stringify(orgToken));
 console.log(`created ${n} buyers with sessions; drop open for ${SEED_EVENTS[0].title}`);
 await sql.end();

@@ -15,6 +15,7 @@ const EVENT = __ENV.EVENT_ID;
 const BROWSE_VUS = Number(__ENV.BROWSE_VUS || 10000);
 const BUYERS = Number(__ENV.BUYERS || 3000);
 const tokens = new SharedArray("tokens", () => JSON.parse(open("./.tokens.json")));
+const organizer = JSON.parse(open("./.organizer.json"));
 
 export const options = {
   discardResponseBodies: false,
@@ -24,6 +25,9 @@ export const options = {
       stages: [{ duration: __ENV.RAMP || "60s", target: BROWSE_VUS }, { duration: __ENV.HOLD || "120s", target: BROWSE_VUS }, { duration: "20s", target: 0 }],
       gracefulRampDown: "10s",
     },
+    // Presses "Start a drop" (the organizer feature) 1 s before the buyers arrive, so the waiting
+    // room's admission clock starts with them.
+    open: { executor: "per-vu-iterations", exec: "openDrop", vus: 1, iterations: 1, startTime: __ENV.OPEN_AT || "59s" },
     checkout: {
       executor: "per-vu-iterations", exec: "checkout", vus: BUYERS, iterations: 1, startTime: __ENV.RAMP || "60s", maxDuration: "6m",
     },
@@ -63,6 +67,11 @@ export function browse() {
   sleep(1 + Math.random() * 2);
   check(http.get(`${BASE}/api/events/${EVENT}/seats`, h), { "seats 200": (r) => r.status === 200 });
   sleep(2 + Math.random() * 3);
+}
+
+export function openDrop() {
+  const r = http.post(`${BASE}/api/organizer/drop`, JSON.stringify({ eventId: EVENT }), { headers: { cookie: `authjs.session-token=${organizer}`, origin: BASE, "content-type": "application/json" }, tags: { step: "open" } });
+  check(r, { "drop opened": (x) => x.status === 200 });
 }
 
 export function checkout() {

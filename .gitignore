@@ -42,3 +42,4 @@ next-env.d.ts
 loadtest/.tokens.json
 loadtest/summary.json
 loadtest/verify.json
+loadtest/.organizer.json

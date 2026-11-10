@@ -26,6 +26,7 @@ jobs:
       FIELD_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
       TICKET_SIGNING_SECRET: loadtest-only-not-a-secret
       MOCK_FAULTS: ${{ inputs.faults }}
+      ORGANIZER_EMAILS: organizer@load.test
       DB_POOL_MAX: "25"  # per instance; 3 instances
       NODE_ENV: production
     steps:
