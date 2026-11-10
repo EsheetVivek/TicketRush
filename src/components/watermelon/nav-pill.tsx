@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { LinkSpinner } from "@/components/pending-link";
 
 export interface NavItem { href: string; label: string }
 
@@ -20,13 +21,13 @@ export function NavPill({ items, className }: { items: NavItem[]; className?: st
           const active = isActive(item.href);
           return (
             <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}
-              className="relative flex min-h-10 shrink-0 items-center rounded-full px-4 text-sm font-medium outline-none">
+              className="relative flex min-h-10 active:scale-95 transition-transform shrink-0 items-center rounded-full px-4 text-sm font-medium outline-none">
               {active && (
                 <motion.span layoutId="nav-active" aria-hidden
                   transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30, mass: 0.9 }}
                   className="absolute inset-0 rounded-full bg-ink shadow-xs" />
               )}
-              <span className={cn("relative z-10 transition-colors duration-200", active ? "text-paper" : "text-muted hover:text-ink")}>{item.label}</span>
+              <span className={cn("relative z-10 flex items-center gap-1.5 transition-colors duration-200", active ? "text-paper" : "text-muted hover:text-ink")}>{item.label}<LinkSpinner className="size-3" /></span>
             </Link>
           );
         })}

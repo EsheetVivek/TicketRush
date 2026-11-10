@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { auth, signIn, PROVIDERS } from "@/auth";
+import { auth, PROVIDERS } from "@/auth";
+import { signInWith } from "@/app/actions/auth";
+import { SubmitButton } from "@/components/submit-button";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -31,11 +33,13 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
 
       <div className="mt-8 flex flex-col gap-3">
         {providers.map((p) => (
-          <form key={p.id} action={async () => { "use server"; await signIn(p.id, { redirectTo: to }); }}>
-            <button type="submit" className="btn-secondary min-h-12 w-full gap-3 text-base">
+          <form key={p.id} action={signInWith}>
+            <input type="hidden" name="provider" value={p.id} />
+            <input type="hidden" name="to" value={to} />
+            <SubmitButton pendingLabel={`Opening ${p.name}…`} className="btn-secondary min-h-12 w-full gap-3 text-base">
               <ProviderIcon id={p.id} />
               Continue with {p.name}
-            </button>
+            </SubmitButton>
           </form>
         ))}
         {providers.length === 0 && <p className="text-sm text-muted">No sign-in method is configured yet.</p>}

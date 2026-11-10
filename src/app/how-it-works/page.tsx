@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { PendingLink } from "@/components/pending-link";
 import { ArrowRight, Fingerprint, KeyRound, Lock, QrCode, ShieldCheck, Webhook } from "lucide-react";
 import { HowItWorks } from "@/components/how-it-works";
 import { SiteFooter } from "@/components/site-footer";
@@ -54,7 +54,7 @@ export default function HowItWorksPage() {
           <ul className="mt-3 flex flex-wrap gap-2">
             {STACK.map((s) => <li key={s} className="pill-surface rounded-full px-3 py-1.5 text-xs font-medium">{s}</li>)}
           </ul>
-          <Link href="/events" className="btn-primary mt-14 px-6">Try a ticket drop<ArrowRight aria-hidden className="size-4" /></Link>
+          <PendingLink href="/events" className="btn-primary mt-14 px-6">Try a ticket drop<ArrowRight aria-hidden className="size-4" /></PendingLink>
         </div>
       </section>
       <SiteFooter />

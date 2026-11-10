@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PendingLink } from "@/components/pending-link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/db";
@@ -29,7 +30,7 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
         <section className="card mt-10 flex flex-col items-start gap-4 p-8 sm:p-12">
           <h2 className="text-xl font-semibold tracking-tight">No orders yet</h2>
           <p className="max-w-md text-muted">When you buy tickets they&apos;ll show up here, with their QR codes one tap away.</p>
-          <Link href="/events" className="btn-primary">Browse events</Link>
+          <PendingLink href="/events" className="btn-primary">Browse events</PendingLink>
         </section>
       ) : (
         <>

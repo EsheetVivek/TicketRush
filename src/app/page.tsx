@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PendingLink } from "@/components/pending-link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { db } from "@/db";
 import { listEvents } from "@/lib/events";
@@ -30,8 +31,8 @@ export default async function Home() {
               A fair waiting room, seats held just for you while you pay, and tickets or an automatic refund. Never a charge without a seat.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link href="/events" className="btn-primary px-6">Browse events<ArrowRight aria-hidden className="size-4" /></Link>
-              <Link href="/how-it-works" className="btn-secondary px-6">How it works</Link>
+              <PendingLink href="/events" className="btn-primary px-6">Browse events<ArrowRight aria-hidden className="size-4" /></PendingLink>
+              <PendingLink href="/how-it-works" className="btn-secondary px-6">How it works</PendingLink>
             </div>
             <dl className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-line pt-6">
               <div><dt className="text-xs text-muted">Racing buyers tested</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">3,000</dd></div>
@@ -81,7 +82,7 @@ export default async function Home() {
               <p className="eyebrow">On sale now</p>
               <h2 id="events-title" className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Live events</h2>
             </div>
-            <Link href="/events" className="btn-secondary">All events<ArrowRight aria-hidden className="size-4" /></Link>
+            <PendingLink href="/events" className="btn-secondary">All events<ArrowRight aria-hidden className="size-4" /></PendingLink>
           </div>
           {events.length ? (
             <ul className="mt-12 grid gap-6 sm:grid-cols-2">
@@ -112,7 +113,7 @@ export default async function Home() {
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Try a ticket drop.</h2>
             <p className="mt-2 text-paper/70">Sign in with Google or GitHub, join the line and pick your seats. It takes a minute.</p>
           </div>
-          <Link href="/events" className="btn-primary px-6">Browse events<ArrowRight aria-hidden className="size-4" /></Link>
+          <PendingLink href="/events" className="btn-primary px-6">Browse events<ArrowRight aria-hidden className="size-4" /></PendingLink>
         </div>
       </section>
 

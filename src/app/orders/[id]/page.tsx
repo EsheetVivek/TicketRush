@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
+import { PendingLink } from "@/components/pending-link";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import QRCode from "qrcode";
@@ -72,8 +72,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </ul>
       )}
       <div className="mt-10 flex flex-wrap gap-3">
-        <Link href="/account/orders" className="btn-secondary">My orders</Link>
-        <Link href="/events" className="btn-quiet">Back to events</Link>
+        <PendingLink href="/account/orders" className="btn-secondary">My orders</PendingLink>
+        <PendingLink href="/events" className="btn-quiet">Back to events</PendingLink>
       </div>
     </main>
   );

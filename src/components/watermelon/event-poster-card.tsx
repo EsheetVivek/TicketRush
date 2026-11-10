@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { PendingLink } from "@/components/pending-link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowRight, CalendarDays, MapPin, Ticket, Users, X } from "lucide-react";
 import { money, when } from "@/lib/format";
@@ -115,9 +115,9 @@ export function EventPosterCard({ e }: { e: PosterEvent }) {
                   <p className="mt-6 text-sm leading-relaxed text-muted">
                     Pick up to 6 seats and they&apos;re held for you for 10 minutes while you pay. Payments run in test mode, and if tickets can&apos;t be issued you&apos;re refunded automatically.
                   </p>
-                  <Link href={`/events/${e.id}`} className="btn-primary mt-6 w-full px-6 sm:w-auto">
+                  <PendingLink href={`/events/${e.id}`} className="btn-primary mt-6 w-full px-6 sm:w-auto">
                     {left === 0 ? "See the seat map" : "Choose seats"}<ArrowRight aria-hidden className="size-4" />
-                  </Link>
+                  </PendingLink>
                 </motion.div>
               </div>
             </motion.div>
