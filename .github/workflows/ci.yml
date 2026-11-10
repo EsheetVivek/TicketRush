@@ -76,7 +76,7 @@ jobs:
             const r = require("./zap/zap-report.json");
             const alerts = r.site.flatMap((s) => s.alerts);
             const by = (code) => alerts.filter((a) => a.riskcode === code);
-            const line = (a) => `- [${a.riskdesc}] ${a.name} (${a.count} instances)`;
+            const line = (a) => `- [${a.riskdesc}] ${a.name} (${a.count} instances)` + (Number(a.riskcode) >= 2 ? a.instances.slice(0, 3).map((i) => `\n  - ${i.method} ${i.uri} · evidence: \`${String(i.evidence || i.param || "").slice(0, 80)}\``).join("") : "");
             const out = ["## OWASP ZAP baseline", "", `High: ${by("3").length} · Medium: ${by("2").length} · Low: ${by("1").length} · Info: ${by("0").length}`, "", ...alerts.map(line)].join("\n");
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out + "\n");
             console.log(out);
