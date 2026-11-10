@@ -22,7 +22,7 @@ export function SiteFooter() {
           <ul className="mt-2">
             <li><a className="inline-flex min-h-11 items-center text-muted hover:text-ink" href={REPO}>GitHub</a></li>
             <li><a className="inline-flex min-h-11 items-center text-muted hover:text-ink" href={`${REPO}/blob/main/docs/02-SYSTEM-DESIGN.md`}>System design</a></li>
-            <li><a className="inline-flex min-h-11 items-center text-muted hover:text-ink" href={`${REPO}/tree/main/docs/results`}>Test results</a></li>
+            <li><Link className="inline-flex min-h-11 items-center text-muted hover:text-ink" href="/results">Test results</Link></li>
           </ul>
         </div>
       </div>

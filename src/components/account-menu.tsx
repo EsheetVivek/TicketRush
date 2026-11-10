@@ -29,6 +29,7 @@ export function HeaderNav({ mobile = false }: { mobile?: boolean }) {
   const nav = [
     { href: "/events", label: "Events" },
     { href: "/how-it-works", label: "How it works" },
+    { href: "/results", label: "Results" },
     ...(me?.signedIn ? [{ href: "/account/orders", label: "My orders" }] : []),
     ...(me?.organizer ? [{ href: "/organizer", label: "Box office" }] : []),
   ];
