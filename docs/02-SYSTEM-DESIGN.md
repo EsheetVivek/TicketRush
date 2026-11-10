@@ -85,6 +85,11 @@ Order states: `pending → paid → ticketed` or `pending → expired`, and `pai
 - Redis over Upstash's HTTPS REST API (no long-lived connections needed in serverless).
 - Seat availability is pushed from a cached snapshot refreshed every 2 s instead of one DB query per viewer.
 
+### Implementation notes (milestone 5b)
+- Seat holds currently live in Postgres (`seat_holds`, primary key on `seat_id`) rather than Redis: one SQL statement checks waiting-room admission, event status, seat validity and sold seats, releases the buyer's previous and any expired holds, and inserts the new hold. A single statement is atomic, so a primary-key conflict on any seat rolls back the whole hold.
+- Checkout creates the order, its items and the audit entry in one statement; ticket issue, the status change, hold release and audit entry are one statement inside the order-locking transaction. Round trips per request: hold 2, checkout 4, payment → tickets 8 (measured in `docs/results/m5b-speed.md`).
+- The function region (`sin1`) must match the database region; `/api/health` reports the round-trip time.
+
 ## 6. Testing plan
 - **Unit + integration:** state machine, idempotency, authorization (Vitest, real Postgres in CI).
 - **Concurrency:** 3,000 parallel buyers for 500 seats → assert exactly 500 tickets, zero duplicates.

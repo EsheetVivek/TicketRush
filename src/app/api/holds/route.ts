@@ -2,7 +2,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/db";
 import { acquireHold, getMyHold, releaseHold, HoldError, MAX_SEATS_PER_HOLD } from "@/lib/holds";
-import { clientIp, isSameOrigin, json, rateLimit } from "@/lib/http";
+import { clientIp, isSameOrigin, json, rateLimit, Timing } from "@/lib/http";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +23,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   if (!isSameOrigin(req)) return json({ error: "Cross-site request blocked." }, { status: 403 });
-  const session = await auth();
+  const t = new Timing();
+  const session = await t.db(auth(), "auth");
   if (!session?.user?.id) return json({ error: "Sign in to hold seats." }, { status: 401 });
 
   const limited = rateLimit(`hold:${session.user.id}`, 10, 60_000);
@@ -36,10 +37,10 @@ export async function POST(req: Request) {
   if (!parsed.success) return json({ error: `Invalid request. Choose between 1 and ${MAX_SEATS_PER_HOLD} seats.` }, { status: 400 });
 
   try {
-    const hold = await acquireHold(db, { userId: session.user.id, ...parsed.data });
-    return json({ hold }, { status: 201 });
+    const hold = await t.db(acquireHold(db, { userId: session.user.id, ...parsed.data }));
+    return json({ hold }, { status: 201, headers: t.headers() });
   } catch (e) {
-    if (e instanceof HoldError) return json({ error: e.message, code: e.code, seatIds: e.seatIds }, { status: STATUS[e.code] });
+    if (e instanceof HoldError) return json({ error: e.message, code: e.code, seatIds: e.seatIds }, { status: STATUS[e.code], headers: t.headers() });
     throw e;
   }
 }

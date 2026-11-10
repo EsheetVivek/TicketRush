@@ -77,7 +77,7 @@ export const orders = pgTable("orders", {
   holdExpiresAt: timestamp("hold_expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-}, (t) => [index().on(t.userId), index().on(t.status, t.createdAt)]);
+}, (t) => [index().on(t.userId, t.createdAt), index().on(t.status, t.createdAt)]); // (user_id, created_at): order history
 
 export const orderItems = pgTable("order_items", {
   orderId: uuid("order_id").notNull().references(() => orders.id),
@@ -93,7 +93,7 @@ export const tickets = pgTable("tickets", {
   qrSig: text("qr_sig").notNull(),
   issuedAt: timestamp("issued_at").notNull().defaultNow(),
   usedAt: timestamp("used_at"),
-}, (t) => [unique("tickets_event_seat_uq").on(t.eventId, t.seatId)]);
+}, (t) => [unique("tickets_event_seat_uq").on(t.eventId, t.seatId), index().on(t.orderId)]);
 
 /** Webhook dedupe: a gateway event is processed at most once. */
 export const paymentEvents = pgTable("payment_events", {

@@ -33,3 +33,43 @@ export function rateLimit(key: string, limit: number, windowMs: number, now = Da
 export function clientIp(req: Request): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
 }
+
+/**
+ * Server-Timing for API routes: lets the browser's devtools (and the benchmark script) see how
+ * long a request spent in the database versus everything else.
+ *   const t = new Timing(); const s = await t.db(auth()); ... return json(body, { headers: t.headers() })
+ */
+export class Timing {
+  private readonly start = performance.now();
+  private readonly parts = new Map<string, number>();
+
+  add(name: string, ms: number) {
+    this.parts.set(name, (this.parts.get(name) ?? 0) + ms);
+  }
+
+  /** Time a database-bound promise; adds to `db` and, if given, to its own metric too. */
+  async db<T>(p: Promise<T>, name?: string): Promise<T> {
+    const t = performance.now();
+    try {
+      return await p;
+    } finally {
+      const ms = performance.now() - t;
+      this.add("db", ms);
+      if (name) this.add(name, ms);
+    }
+  }
+
+  get(name: string): number {
+    return this.parts.get(name) ?? 0;
+  }
+
+  header(): string {
+    const total = performance.now() - this.start;
+    const fmt = (ms: number) => ms.toFixed(1);
+    return [...this.parts.entries()].map(([k, v]) => `${k};dur=${fmt(v)}`).concat(`total;dur=${fmt(total)}`).join(", ");
+  }
+
+  headers(extra: Record<string, string> = {}): Record<string, string> {
+    return { ...extra, "Server-Timing": this.header() };
+  }
+}

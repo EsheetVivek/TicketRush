@@ -1,10 +1,12 @@
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/db/schema";
 import { auditLog, events, orderItems, orders, paymentEvents, refunds, seatHolds, seats, tickets } from "@/db/schema";
 import { signTicket } from "@/lib/crypto";
 import { withRetries, type PaymentEvent, type PaymentGateway } from "@/lib/payments/gateway";
 import { paymentsBreaker, type CircuitBreaker } from "@/lib/payments/breaker";
+import type { Timing } from "@/lib/http";
+import { uuidArray } from "@/lib/holds";
 
 type DB = PostgresJsDatabase<typeof schema>;
 
@@ -25,44 +27,61 @@ export class CheckoutError extends Error {
 export async function startCheckout(
   db: DB,
   gw: PaymentGateway,
-  input: { userId: string; eventId: string; idemKey: string; now?: Date; breaker?: CircuitBreaker },
+  input: { userId: string; eventId: string; idemKey: string; now?: Date; breaker?: CircuitBreaker; timing?: Timing },
 ): Promise<{ orderId: string; clientSecret: string | null; amountMinor: number; gateway: PaymentGateway["name"] }> {
   const now = input.now ?? new Date();
 
-  let order = (await db.select().from(orders).where(eq(orders.idemKey, input.idemKey)))[0];
-  if (order && order.userId !== input.userId) throw new CheckoutError("FORBIDDEN", "This checkout belongs to someone else.");
+  // One statement: reuse the order for this idempotency key if it exists; otherwise lock the
+  // buyer's live hold, price it from the seats table, and insert the order, its items and the
+  // audit entry. The event title comes back in the same round trip.
+  type Row = { id: string; user_id: string; event_id: string; amount_cents: number; gateway_ref: string | null; hold_expires_at: Date | string; title: string | null };
+  const created = await db.execute<Row>(sql`
+    with existing as (
+      select id, user_id, event_id, amount_cents, gateway_ref, hold_expires_at from ${orders} where idem_key = ${input.idemKey}
+    ), held as (
+      select h.seat_id, h.expires_at from ${seatHolds} h
+      where h.holder_id = ${input.userId} and h.event_id = ${input.eventId}
+        and h.expires_at > ${now.toISOString()}::timestamp and not exists (select 1 from existing)
+      for update of h
+    ), priced as (
+      select held.seat_id, held.expires_at, s.price_cents from held join ${seats} s on s.id = held.seat_id
+    ), ins as (
+      insert into ${orders} (user_id, event_id, amount_cents, idem_key, hold_expires_at)
+      select ${input.userId}, ${input.eventId}, sum(price_cents)::int, ${input.idemKey}, min(expires_at) from priced having count(*) > 0
+      on conflict (idem_key) do nothing
+      returning id, user_id, event_id, amount_cents, gateway_ref, hold_expires_at
+    ), items as (
+      insert into ${orderItems} (order_id, seat_id) select ins.id, priced.seat_id from ins, priced
+    ), audit as (
+      insert into ${auditLog} (actor_id, action, target, meta)
+      select ${input.userId}, 'order.created', 'order:' || ins.id,
+        jsonb_build_object('amount', ins.amount_cents, 'seats', (select count(*) from priced)) from ins
+    )
+    select o.*, ev.title from (select * from ins union all select * from existing) o
+    left join ${events} ev on ev.id = o.event_id`);
 
-  if (!order) {
-    order = await db.transaction(async (tx) => {
-      const held = await tx.select({ seatId: seatHolds.seatId, expiresAt: seatHolds.expiresAt }).from(seatHolds)
-        .where(and(eq(seatHolds.holderId, input.userId), eq(seatHolds.eventId, input.eventId), gt(seatHolds.expiresAt, now)))
-        .for("update");
-      if (!held.length) throw new CheckoutError("NO_HOLD", "Your seat hold has expired. Pick your seats again.");
-
-      const priced = await tx.select({ id: seats.id, price: seats.priceCents }).from(seats)
-        .where(inArray(seats.id, held.map((h) => h.seatId)));
-      const amount = priced.reduce((sum, s) => sum + s.price, 0);
-
-      const [created] = await tx.insert(orders).values({
-        userId: input.userId, eventId: input.eventId, amountCents: amount, idemKey: input.idemKey, holdExpiresAt: held[0].expiresAt,
-      }).onConflictDoNothing({ target: orders.idemKey }).returning();
-      if (!created) return (await tx.select().from(orders).where(eq(orders.idemKey, input.idemKey)))[0];
-
-      await tx.insert(orderItems).values(held.map((h) => ({ orderId: created.id, seatId: h.seatId })));
-      await tx.insert(auditLog).values({ actorId: input.userId, action: "order.created", target: `order:${created.id}`, meta: { amount, seats: held.length } });
-      return created;
-    });
-    if (order.userId !== input.userId) throw new CheckoutError("FORBIDDEN", "This checkout belongs to someone else.");
+  let r: Row | undefined = created[0];
+  if (!r) {
+    // Either there is no live hold, or a concurrent request with the same key won the insert.
+    const [o] = await db.select().from(orders).where(eq(orders.idemKey, input.idemKey));
+    if (!o) throw new CheckoutError("NO_HOLD", "Your seat hold has expired. Pick your seats again.");
+    r = { id: o.id, user_id: o.userId, event_id: o.eventId, amount_cents: o.amountCents, gateway_ref: o.gatewayRef, hold_expires_at: o.holdExpiresAt, title: null };
   }
+  if (r.user_id !== input.userId) throw new CheckoutError("FORBIDDEN", "This checkout belongs to someone else.");
+  const order = {
+    id: r.id, userId: r.user_id, eventId: r.event_id, amountCents: Number(r.amount_cents), gatewayRef: r.gateway_ref,
+    holdExpiresAt: r.hold_expires_at instanceof Date ? r.hold_expires_at : new Date(`${String(r.hold_expires_at).replace(" ", "T")}Z`),
+  };
 
-  const [event] = await db.select({ title: events.title }).from(events).where(eq(events.id, order.eventId));
   let payment;
+  const gwStart = performance.now();
   try {
     payment = await (input.breaker ?? paymentsBreaker).run(() => withRetries(() => gw.createPayment({
       orderId: order.id, amountMinor: order.amountCents, currency: "inr", idempotencyKey: `pi:${order.id}`,
-      description: `TicketRush · ${event?.title ?? "tickets"}`,
+      description: `TicketRush · ${r.title ?? "tickets"}`,
     })));
   } catch {
+    input.timing?.add("gateway", performance.now() - gwStart);
     // The hold and order remain, and the hold is extended so an outage doesn't cost the buyer
     // their seats (capped at 30 min after the original expiry). Retrying returns the same payment.
     const extendTo = new Date(Math.min(now.getTime() + 5 * 60_000, order.holdExpiresAt.getTime() + 30 * 60_000));
@@ -70,6 +89,7 @@ export async function startCheckout(
       .where(and(eq(seatHolds.holderId, order.userId), eq(seatHolds.eventId, order.eventId), sql`${seatHolds.expiresAt} < ${extendTo.toISOString()}::timestamp`));
     throw new CheckoutError("GATEWAY_DOWN", "Payments are briefly unavailable. Your seats are still held, so try again in a moment.");
   }
+  input.timing?.add("gateway", performance.now() - gwStart);
   if (!order.gatewayRef) {
     await db.update(orders).set({ gatewayRef: payment.gatewayRef, updatedAt: new Date() })
       .where(and(eq(orders.id, order.id), sql`${orders.gatewayRef} is null`));
@@ -106,46 +126,53 @@ export async function fulfil(
 ): Promise<FulfilResult> {
   const outcome = await db.transaction(async (tx) => {
     // Find the order by payment reference, or by the order ID the gateway echoes back
-    // (covers the case where we crashed before saving the reference).
-    let [order] = await tx.select().from(orders).where(eq(orders.gatewayRef, p.gatewayRef)).for("update");
+    // (covers the case where we crashed before saving the reference). The row lock serialises
+    // duplicate webhooks; the seat list comes back in the same round trip.
+    const lockOrder = (where: ReturnType<typeof sql>) => tx.execute<{ id: string; user_id: string; event_id: string; status: string; amount_cents: number; gateway_ref: string | null; seat_ids: string[] }>(sql`
+      select o.id, o.user_id, o.event_id, o.status, o.amount_cents, o.gateway_ref,
+        array(select oi.seat_id::text from ${orderItems} oi where oi.order_id = o.id order by oi.seat_id) as seat_ids
+      from ${orders} o where ${where} for update of o`);
+    let [order] = await lockOrder(sql`o.gateway_ref = ${p.gatewayRef}`);
     if (!order && p.orderId) {
-      [order] = await tx.select().from(orders).where(eq(orders.id, p.orderId)).for("update");
-      if (order && !order.gatewayRef) await tx.update(orders).set({ gatewayRef: p.gatewayRef }).where(eq(orders.id, order.id));
+      [order] = await lockOrder(sql`o.id = ${p.orderId}`);
+      if (order && !order.gateway_ref) await tx.update(orders).set({ gatewayRef: p.gatewayRef }).where(eq(orders.id, order.id));
     }
     if (!order) return { result: "unknown_order" as const };
     if (order.status === "ticketed" || order.status === "refunded" || order.status === "refund_pending") {
       return { result: "already_done" as const };
     }
 
-    const reason = p.amountMinor !== order.amountCents ? "amount_mismatch" : null;
-    let issued = false;
+    const reason = p.amountMinor !== order.amount_cents ? "amount_mismatch" : null;
     if (!reason) {
-      const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      try {
-        // Savepoint: if any seat was already ticketed to someone else, undo only the ticket inserts.
-        await tx.transaction(async (sp) => {
-          const rows = items.map((i) => {
-            const id = crypto.randomUUID();
-            return { id, orderId: order.id, eventId: order.eventId, seatId: i.seatId, qrSig: signTicket(id) };
-          });
-          const inserted = await sp.insert(tickets).values(rows).onConflictDoNothing({ target: [tickets.eventId, tickets.seatId] }).returning({ id: tickets.id });
-          if (inserted.length !== rows.length) throw new Error("seat_taken");
-        });
-        issued = true;
-      } catch (e) {
-        if ((e as Error).message !== "seat_taken") throw e;
-      }
-      if (issued) {
-        await tx.update(orders).set({ status: "ticketed", updatedAt: new Date() }).where(eq(orders.id, order.id));
-        await tx.delete(seatHolds).where(and(eq(seatHolds.holderId, order.userId), inArray(seatHolds.seatId, items.map((i) => i.seatId))));
-        await tx.insert(auditLog).values({ actorId: order.userId, action: "order.ticketed", target: `order:${order.id}` });
-        return { result: "ticketed" as const };
-      }
+      // One statement issues every ticket, marks the order ticketed, releases the hold and writes
+      // the audit entry, but only if every seat could be ticketed. UNIQUE(event_id, seat_id) is
+      // the final word: a seat already ticketed to someone else makes the count fall short.
+      const rows = order.seat_ids.map((seatId) => {
+        const id = crypto.randomUUID();
+        return sql`(${id}::uuid, ${order.id}::uuid, ${order.event_id}::uuid, ${seatId}::uuid, ${signTicket(id)})`;
+      });
+      const [r] = await tx.execute<{ ids: string[]; done: boolean }>(sql`
+        with t as (
+          insert into ${tickets} (id, order_id, event_id, seat_id, qr_sig) values ${sql.join(rows, sql`, `)}
+          on conflict (event_id, seat_id) do nothing returning id
+        ), upd as (
+          update ${orders} set status = 'ticketed', updated_at = ${new Date().toISOString()}::timestamp
+          where id = ${order.id} and (select count(*) from t) = ${rows.length} returning id
+        ), released as (
+          delete from ${seatHolds} where holder_id = ${order.user_id} and seat_id = any(${uuidArray(order.seat_ids)})
+            and exists (select 1 from upd)
+        ), audit as (
+          insert into ${auditLog} (actor_id, action, target) select ${order.user_id}, 'order.ticketed', 'order:' || upd.id from upd
+        )
+        select array(select id::text from t) as ids, exists (select 1 from upd) as done`);
+      if (r.done) return { result: "ticketed" as const };
+      // Some seat was taken: remove the tickets this attempt did insert, then refund below.
+      if (r.ids.length) await tx.delete(tickets).where(inArray(tickets.id, r.ids));
     }
 
     await tx.update(orders).set({ status: "refund_pending", updatedAt: new Date() }).where(eq(orders.id, order.id));
     await tx.insert(refunds).values({ orderId: order.id, reason: reason ?? "seat_unavailable" }).onConflictDoNothing();
-    await tx.insert(auditLog).values({ actorId: order.userId, action: "order.refund_pending", target: `order:${order.id}`, meta: { reason: reason ?? "seat_unavailable" } });
+    await tx.insert(auditLog).values({ actorId: order.user_id, action: "order.refund_pending", target: `order:${order.id}`, meta: { reason: reason ?? "seat_unavailable" } });
     return { result: "refund_pending" as const, orderId: order.id };
   });
 

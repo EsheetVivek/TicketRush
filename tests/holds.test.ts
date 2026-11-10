@@ -91,6 +91,23 @@ run("seat holds", () => {
     expect(await getMyHold(db, { userId: u, eventId: CONCERT })).toBeNull();
   });
 
+  it("re-holding the same seats in one statement keeps them (release and insert of the same seat)", async () => {
+    const [u] = await makeUsers(1, "g");
+    await acquireHold(db, { userId: u, eventId: CONCERT, seatIds: [seatIds[20], seatIds[21]] });
+    const again = await acquireHold(db, { userId: u, eventId: CONCERT, seatIds: [seatIds[21], seatIds[20]] });
+    expect((await getMyHold(db, { userId: u, eventId: CONCERT }))?.holdToken).toBe(again.holdToken);
+    expect((await db.select().from(schema.seatHolds)).length).toBe(2);
+  });
+
+  it("a failed hold attempt leaves the buyer's previous hold untouched", async () => {
+    const [a, b] = await makeUsers(2, "h");
+    await acquireHold(db, { userId: a, eventId: CONCERT, seatIds: [seatIds[30]] });
+    const mine = await acquireHold(db, { userId: b, eventId: CONCERT, seatIds: [seatIds[31]] });
+    await expect(acquireHold(db, { userId: b, eventId: CONCERT, seatIds: [seatIds[30], seatIds[32]] }))
+      .rejects.toMatchObject({ code: "HELD", seatIds: [seatIds[30]] });
+    expect((await getMyHold(db, { userId: b, eventId: CONCERT }))?.holdToken).toBe(mine.holdToken);
+  });
+
   it("3,000 buyers racing for 500 seats: no seat is ever held twice", async () => {
     const buyers = await makeUsers(3000, "race");
     // Every buyer wants 1–3 seats, heavily overlapping (all aim at the same 500 seats).

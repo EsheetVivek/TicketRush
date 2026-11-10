@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/db/schema";
 import { mockPayments } from "@/db/schema";
@@ -37,10 +37,17 @@ export class MockGateway implements PaymentGateway {
   createPayment(input: Parameters<PaymentGateway["createPayment"]>[0]) {
     return this.chaos(async () => {
       const ref = `mock_pi_${input.orderId}`;
-      await this.db.insert(mockPayments)
-        .values({ ref, idemKey: input.idempotencyKey, orderId: input.orderId, amountMinor: input.amountMinor })
-        .onConflictDoNothing();
-      const [row] = await this.db.select().from(mockPayments).where(eq(mockPayments.idemKey, input.idempotencyKey));
+      // Insert, or return the payment already created with this idempotency key: one round trip.
+      const rows = await this.db.execute<{ ref: string }>(sql`
+        with ins as (
+          insert into ${mockPayments} (ref, idem_key, order_id, amount_minor)
+          values (${ref}, ${input.idempotencyKey}, ${input.orderId}, ${input.amountMinor})
+          on conflict do nothing returning ref
+        )
+        select ref from ins union all select ref from ${mockPayments} where idem_key = ${input.idempotencyKey} limit 1`);
+      let row = rows[0];
+      // Lost a same-key race: the other insert is committed now, so read it.
+      if (!row) [row] = await this.db.select({ ref: mockPayments.ref }).from(mockPayments).where(eq(mockPayments.idemKey, input.idempotencyKey));
       return { gatewayRef: row.ref, clientSecret: `${row.ref}_secret` };
     });
   }
