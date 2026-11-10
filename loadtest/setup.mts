@@ -20,9 +20,12 @@ for (let i = 0; i < n; i += 1000) {
   await sql`insert into users ${sql(users.slice(i, i + 1000))} on conflict do nothing`;
   await sql`insert into sessions ${sql(sessions.slice(i, i + 1000))}`;
 }
-// The drop opens now. Burst is raised so the test measures checkout under load; the waiting
-// room's own fairness is covered separately (m5-waiting-room.md).
-await sql`update events set on_sale_at = now(), status = 'on_sale', queue_burst = 100000 where id = ${SEED_EVENTS[0].id}`;
+// The drop opens now. QUEUE_BURST / QUEUE_RATE_PER_MIN configure the waiting room for the run:
+// a huge burst admits everyone at once (worst case, line bypassed); smaller values meter buyers in
+// the way a real drop does.
+const burst = Number(process.env.QUEUE_BURST ?? 100000);
+const rate = Number(process.env.QUEUE_RATE_PER_MIN ?? 300);
+await sql`update events set on_sale_at = now(), status = 'on_sale', queue_burst = ${burst}, queue_rate_per_min = ${rate} where id = ${SEED_EVENTS[0].id}`;
 writeFileSync("loadtest/.tokens.json", JSON.stringify(sessions.map((s) => s.session_token)));
 console.log(`created ${n} buyers with sessions; drop open for ${SEED_EVENTS[0].title}`);
 await sql.end();

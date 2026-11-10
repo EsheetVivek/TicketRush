@@ -74,7 +74,10 @@ jobs:
             zap-baseline.py -t http://localhost:3000 -r zap-report.html -J zap-report.json -I || true
           node -e '
             const r = require("./zap/zap-report.json");
-            const alerts = r.site.flatMap((s) => s.alerts);
+            // Accepted on purpose: Stripe's public test card (4242…), shown in the FAQ for test-mode payments.
+            // Only an alert whose every instance is that exact number is dropped; any other PII still fails.
+            const isTestCard = (i) => String(i.evidence || "").replace(/\D/g, "") === "4242424242424242";
+            const alerts = r.site.flatMap((s) => s.alerts).filter((a) => !(a.pluginid === "10062" && a.instances.every(isTestCard)));
             const by = (code) => alerts.filter((a) => a.riskcode === code);
             const line = (a) => `- [${a.riskdesc}] ${a.name} (${a.count} instances)` + (Number(a.riskcode) >= 2 ? a.instances.slice(0, 3).map((i) => `\n  - ${i.method} ${i.uri} · evidence: \`${String(i.evidence || i.param || "").slice(0, 80)}\``).join("") : "");
             const out = ["## OWASP ZAP baseline", "", `High: ${by("3").length} · Medium: ${by("2").length} · Low: ${by("1").length} · Info: ${by("0").length}`, "", ...alerts.map(line)].join("\n");

@@ -20,7 +20,9 @@ if (k6) {
   out.push(`- Peak virtual users: ${m("vus_max").max ?? m("vus_max").value}`);
   out.push(`- Holds won: ${m("holds_won").count ?? 0} · seat conflicts retried: ${m("hold_conflicts").count ?? 0} · gave up (sold out): ${m("sold_out_give_ups").count ?? 0}`);
   out.push(`- Paid: ${m("orders_paid").count ?? 0} · ticketed live: ${m("orders_ticketed").count ?? 0} · refunded live: ${m("orders_refunded").count ?? 0} · webhooks deliberately lost: ${m("webhooks_lost").count ?? 0} · gateway errors retried: ${m("gateway_errors").count ?? 0}`);
-  out.push(`- Time from start to ticket: median ${ms(m("time_to_ticket_ms").med)}, p95 ${ms(m("time_to_ticket_ms")["p(95)"])}`);
+  out.push(`- Time in line: median ${ms(m("time_in_line_ms").med)}, p95 ${ms(m("time_in_line_ms")["p(95)"])}`);
+  out.push(`- Admitted → ticket: median ${ms(m("admitted_to_ticket_ms").med)}, p95 ${ms(m("admitted_to_ticket_ms")["p(95)"])}`);
+  out.push(`- Join → ticket (total): median ${ms(m("time_to_ticket_ms").med)}, p95 ${ms(m("time_to_ticket_ms")["p(95)"])}`);
   const th = Object.entries(k6.metrics).filter(([, x]) => x.thresholds).flatMap(([k, x]) => Object.entries(x.thresholds).map(([t, r]) => `${r.ok ? "✅" : "❌"} \`${k}\` ${t}`));
   out.push("", "### Thresholds", "", ...th.map((t) => `- ${t}`));
 }

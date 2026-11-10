@@ -9,6 +9,8 @@ on:
       browse_vus: { description: "Browsing virtual users", default: "10000" }
       buyers: { description: "Concurrent buyers", default: "3000" }
       faults: { description: "MOCK_FAULTS", default: "failBefore=0.03,failAfter=0.03,dropWebhook=0.05,latencyMs=100" }
+      queue_burst: { description: "Waiting room burst (100000 = line bypassed, worst case)", default: "150" }
+      queue_rate: { description: "Waiting room admissions per minute", default: "1200" }
 
 permissions:
   contents: read
@@ -16,7 +18,7 @@ permissions:
 jobs:
   load:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/ticketrush
       AUTH_SECRET: loadtest-only-not-a-secret
@@ -41,6 +43,9 @@ jobs:
         run: |
           nproc; lscpu | grep "Model name"; free -h | head -2
       - name: Create buyers and open the drop
+        env:
+          QUEUE_BURST: ${{ inputs.queue_burst }}
+          QUEUE_RATE_PER_MIN: ${{ inputs.queue_rate }}
         run: npx tsx loadtest/setup.mts ${{ inputs.buyers }}
       - name: Start 3 app instances behind nginx
         run: |

@@ -25,7 +25,7 @@ export const options = {
       gracefulRampDown: "10s",
     },
     checkout: {
-      executor: "per-vu-iterations", exec: "checkout", vus: BUYERS, iterations: 1, startTime: __ENV.RAMP || "60s", maxDuration: "4m",
+      executor: "per-vu-iterations", exec: "checkout", vus: BUYERS, iterations: 1, startTime: __ENV.RAMP || "60s", maxDuration: "6m",
     },
   },
   thresholds: {
@@ -50,6 +50,8 @@ const refunded = new Counter("orders_refunded");
 const gatewayErrors = new Counter("gateway_errors");
 const lostWebhooks = new Counter("webhooks_lost");
 const timeToTicket = new Trend("time_to_ticket_ms", true);
+const timeInLine = new Trend("time_in_line_ms", true);
+const shopToTicket = new Trend("admitted_to_ticket_ms", true);
 
 export function browse() {
   const ip = `10.1.${Math.floor(exec.vu.idInTest / 250)}.${exec.vu.idInTest % 250}`;
@@ -70,7 +72,18 @@ export function checkout() {
   const started = Date.now();
   const post = (path, body, step) => http.post(`${BASE}${path}`, JSON.stringify(body), { headers, tags: { step } });
 
-  check(post(`/api/queue/${EVENT}`, {}, "queue"), { "joined line": (r) => r.status === 200 });
+  const joined = post(`/api/queue/${EVENT}`, {}, "queue");
+  check(joined, { "joined line": (r) => r.status === 200 });
+  // Wait in line until admitted, polling like the waiting-room page does.
+  let admitted = joined.status === 200 && joined.json("admitted");
+  for (let k = 0; !admitted && k < 120; k++) {
+    sleep(2);
+    const st = http.get(`${BASE}/api/queue/${EVENT}`, { headers, tags: { step: "line_poll" } });
+    admitted = st.status === 200 && st.json("admitted");
+  }
+  if (!admitted) { check(null, { "admitted from line": () => false }); return; }
+  timeInLine.add(Date.now() - started);
+  const shopStart = Date.now();
 
   let hold = null;
   for (let attempt = 0; attempt < 4 && !hold; attempt++) {
@@ -100,7 +113,7 @@ export function checkout() {
 
   for (let k = 0; k < 20; k++) {
     const s = http.get(`${BASE}/api/orders/${orderId}`, { headers, tags: { step: "status" } }).json("status");
-    if (s === "ticketed") { ticketed.add(1); timeToTicket.add(Date.now() - started); return; }
+    if (s === "ticketed") { ticketed.add(1); timeToTicket.add(Date.now() - started); shopToTicket.add(Date.now() - shopStart); return; }
     if (s === "refunded" || s === "refund_pending") { refunded.add(1); return; }
     sleep(0.5);
   }
