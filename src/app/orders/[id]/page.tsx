@@ -27,34 +27,41 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   if (!z.uuid().safeParse(id).success) notFound();
 
   // Ownership check in the query itself: another user's order looks exactly like a missing one.
-  const [order] = await db.select().from(orders).where(and(eq(orders.id, id), eq(orders.userId, session.user.id)));
-  if (!order) notFound();
-  const [event] = await db.select().from(events).where(eq(events.id, order.eventId));
-  const issued = await db.select({ id: tickets.id, qr: tickets.qrSig, section: seats.section, row: seats.row, number: seats.number })
-    .from(tickets).innerJoin(seats, eq(seats.id, tickets.seatId)).where(eq(tickets.orderId, order.id));
+  // Order, event and tickets are fetched in parallel (the tickets query carries the same ownership filter).
+  const [[row], issued] = await Promise.all([
+    db.select({ order: orders, event: events }).from(orders).innerJoin(events, eq(events.id, orders.eventId))
+      .where(and(eq(orders.id, id), eq(orders.userId, session.user.id))),
+    db.select({ id: tickets.id, qr: tickets.qrSig, section: seats.section, row: seats.row, number: seats.number })
+      .from(tickets).innerJoin(seats, eq(seats.id, tickets.seatId)).innerJoin(orders, eq(orders.id, tickets.orderId))
+      .where(and(eq(tickets.orderId, id), eq(orders.userId, session.user.id))),
+  ]);
+  if (!row) notFound();
+  const { order, event } = row;
   const qrs = await Promise.all(issued.map((t) => QRCode.toDataURL(t.qr, { margin: 1, width: 352, errorCorrectionLevel: "M" })));
   const copy = COPY[order.status] ?? COPY.pending;
   const done = ["ticketed", "refunded", "expired"].includes(order.status);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <OrderStatusPoller orderId={order.id} done={done} />
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">Order {order.id.slice(0, 8)} · {money(order.amountCents)}</p>
-      <h1 className="mt-2 text-4xl font-bold tracking-tight" aria-live="polite">{copy.title}</h1>
-      <p className="mt-2 text-lg text-muted">{copy.body}</p>
-      <p className="mt-6 font-semibold">{event.title}</p>
-      <p className="text-muted">{event.venue} · {when(event.startsAt)}</p>
+      <p className="eyebrow">Order {order.id.slice(0, 8)} · {money(order.amountCents)}</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" aria-live="polite">{copy.title}</h1>
+      <p className="mt-2 text-muted">{copy.body}</p>
+      <div className="card mt-8 p-6">
+        <p className="font-semibold">{event.title}</p>
+        <p className="mt-1 text-sm text-muted">{event.venue} · {when(event.startsAt)}</p>
+      </div>
 
       {issued.length > 0 && (
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
           {issued.map((t, i) => (
-            <li key={t.id} className="overflow-hidden rounded-2xl border border-line bg-card">
-              <div className="p-5">
-                <p className="font-mono text-xs uppercase tracking-widest text-muted">{t.section}</p>
-                <p className="mt-1 text-2xl font-bold">Row {t.row} · Seat {t.number}</p>
+            <li key={t.id} className="card overflow-hidden">
+              <div className="p-6">
+                <p className="eyebrow">{t.section}</p>
+                <p className="mt-1 text-xl font-semibold tracking-tight">Row {t.row} · Seat {t.number}</p>
               </div>
-              <div aria-hidden className="mx-5 border-t-2 border-dashed border-line" />
-              <div className="bg-white p-5">
+              <div aria-hidden className="stub-rule mx-6" />
+              <div className="m-4 rounded-xl bg-white p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element -- data URL, nothing to optimise */}
                 <img className="mx-auto w-44" src={qrs[i]} alt={`QR code for row ${t.row} seat ${t.number}`} width={176} height={176} />
               </div>
@@ -62,7 +69,10 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           ))}
         </ul>
       )}
-      <Link href="/" className="mt-10 inline-flex min-h-11 items-center rounded-full border border-line px-5 font-medium hover:bg-card">Back to events</Link>
+      <div className="mt-10 flex flex-wrap gap-3">
+        <Link href="/account/orders" className="btn-secondary">My orders</Link>
+        <Link href="/events" className="btn-quiet">Back to events</Link>
+      </div>
     </main>
   );
 }

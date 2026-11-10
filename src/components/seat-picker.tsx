@@ -19,8 +19,9 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   const [message, setMessage] = useState<{ tone: "error" | "info"; text: string } | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const loadSeats = useCallback(async () => {
-    const r = await fetch(`/api/events/${eventId}/seats`);
+  // Polls use the edge-cached snapshot (2 s); right after our own hold or release we bypass it.
+  const loadSeats = useCallback(async (fresh = false) => {
+    const r = await fetch(`/api/events/${eventId}/seats${fresh ? `?fresh=${Date.now()}` : ""}`, fresh ? { cache: "no-store" } : undefined);
     if (r.ok) setSeats((await r.json()).seats);
   }, [eventId]);
 
@@ -83,6 +84,11 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   async function holdSeats() {
     setBusy(true);
     setMessage(null);
+    // Optimistic: show the seats as yours straight away; roll back if the server says no.
+    const wanted = selected;
+    const optimisticExpiry = new Date(Date.now() + 10 * 60_000).toISOString();
+    setHold({ holdToken: "pending", seatIds: wanted, expiresAt: optimisticExpiry });
+    setSelected([]);
     try {
       const r = await fetch("/api/holds", {
         method: "POST",
@@ -92,13 +98,18 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
       const body = await r.json();
       if (r.ok) {
         setHold({ ...body.hold, expiresAt: body.hold.expiresAt });
-        setSelected([]);
         setNow(Date.now());
       } else {
+        setHold(null);
         setMessage({ tone: "error", text: body.error ?? "Couldn't hold those seats. Try again." });
-        if (body.seatIds?.length) setSelected((cur) => cur.filter((id) => !body.seatIds.includes(id)));
+        setSelected(body.seatIds?.length ? wanted.filter((id) => !body.seatIds.includes(id)) : wanted);
       }
-      await loadSeats();
+      // Refresh availability now rather than waiting for the next poll.
+      void loadSeats(true);
+    } catch {
+      setHold(null);
+      setSelected(wanted);
+      setMessage({ tone: "error", text: "Network problem. Nothing was held, so try again." });
     } finally {
       setBusy(false);
     }
@@ -107,10 +118,10 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   async function release() {
     setBusy(true);
     try {
-      await fetch(`/api/holds?eventId=${eventId}`, { method: "DELETE" });
-      setHold(null);
+      setHold(null); // optimistic
       setMessage({ tone: "info", text: "Seats released." });
-      await loadSeats();
+      await fetch(`/api/holds?eventId=${eventId}`, { method: "DELETE" });
+      void loadSeats(true);
     } finally {
       setBusy(false);
     }
@@ -121,41 +132,40 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   const label = (s: Seat) => `${s.section}, row ${s.row}, seat ${s.number}`;
 
   if (!seats) {
-    return <div className="mt-10 h-72 animate-pulse rounded-2xl border border-line bg-card" aria-label="Loading seats" />;
+    return <div className="card mt-8 h-72 animate-pulse" aria-label="Loading seats" />;
   }
 
   return (
-    <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <section aria-label="Seat map" className="min-w-0 rounded-2xl border border-line bg-card p-4 sm:p-6">
-        <div className="mb-6 rounded-lg bg-paper py-2 text-center font-mono text-xs uppercase tracking-[0.3em] text-muted">Stage</div>
-        <Legend />
-        <div className="mt-6 flex flex-col gap-8">
+    <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
+      <section aria-label="Seat map" className="card min-w-0 p-4 sm:p-8">
+        <div className="mx-auto mb-8 max-w-md rounded-full bg-sunk py-2 text-center font-mono text-[11px] uppercase tracking-[0.3em] text-muted">Stage</div>
+        <div className="flex flex-col gap-8">
           {sections.map(([name, rows]) => {
             const first = [...rows.values()][0][0];
             return (
               <fieldset key={name} className="min-w-0">
                 <legend className="mb-3 flex w-full items-baseline justify-between gap-3">
-                  <span className="text-lg font-semibold">{name}</span>
-                  <span className="text-sm text-muted">{money(first.priceCents)}</span>
+                  <span className="text-sm font-semibold">{name}</span>
+                  <span className="text-sm tabular-nums text-muted">{money(first.priceCents)}</span>
                 </legend>
-                <div className="overflow-x-auto pb-2">
-                  <div className="flex w-max flex-col gap-1.5">
+                <div className="-mx-1 overflow-x-auto px-1 pb-2">
+                  <div className="flex w-max min-w-full flex-col items-center gap-1.5">
                     {[...rows.entries()].map(([row, rowSeats]) => (
                       <div key={row} className="flex items-center gap-1.5">
-                        <span className="w-5 shrink-0 text-center font-mono text-xs text-muted" aria-hidden>{row}</span>
+                        <span className="w-5 shrink-0 text-center font-mono text-[11px] text-muted" aria-hidden>{row}</span>
                         {rowSeats.map((s) => {
                           const isMine = mine.has(s.id);
                           const isSel = selected.includes(s.id);
                           const disabled = !isMine && s.status !== "available";
                           const cls = isMine
-                            ? "bg-ok text-white border-ok"
+                            ? "bg-ink border-ink text-paper"
                             : isSel
-                              ? "bg-hot text-hot-ink border-hot"
+                              ? "bg-hot border-hot text-hot-ink"
                               : s.status === "sold"
-                                ? "bg-sold border-sold text-transparent cursor-not-allowed"
+                                ? "seat-sold border-transparent text-transparent cursor-not-allowed"
                                 : s.status === "held"
-                                  ? "bg-held/30 border-held text-transparent cursor-not-allowed"
-                                  : "bg-card border-line hover:border-hot hover:text-hot";
+                                  ? "seat-held border-line text-transparent cursor-not-allowed"
+                                  : "bg-card border-line-strong text-muted hover:border-ink hover:text-ink";
                           return (
                             <button
                               key={s.id}
@@ -165,7 +175,7 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
                               aria-label={`${label(s)}, ${money(s.priceCents)}, ${isMine ? "held by you" : s.status}`}
                               title={`${label(s)} · ${money(s.priceCents)}`}
                               onClick={() => toggle(s.id)}
-                              className={`h-7 w-7 shrink-0 rounded-md border text-[10px] font-medium tabular-nums transition ${cls}`}
+                              className={`h-7 w-7 shrink-0 rounded-full border text-[10px] font-medium tabular-nums transition-colors duration-100 ${cls}`}
                             >
                               {s.number}
                             </button>
@@ -179,54 +189,53 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
             );
           })}
         </div>
+        <div className="mt-8 border-t border-line pt-4"><Legend /></div>
       </section>
 
-      <aside className="sticky bottom-3 z-10 lg:bottom-auto lg:top-6 lg:self-start">
-        <div className="rounded-2xl border border-line bg-card p-4 shadow-xl lg:p-5 shadow-black/10 lg:shadow-none">
+      <aside className="sticky bottom-4 z-10 lg:bottom-auto lg:top-8 lg:self-start">
+        <div className="card p-4 shadow-lg shadow-black/5 sm:p-6 lg:shadow-soft">
           {hold ? (
             <>
-              <p className="font-mono text-xs uppercase tracking-widest text-muted">Held for you</p>
-              <p className="mt-2 text-4xl font-bold tabular-nums" aria-live="polite">
+              <p className="eyebrow">Held for you</p>
+              <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight" aria-live="polite">
                 {Math.floor(remainingS / 60)}:{String(remainingS % 60).padStart(2, "0")}
               </p>
               <ul className="mt-4 flex flex-col gap-1 text-sm">
                 {hold.seatIds.map((id) => byId.get(id)).filter(Boolean).map((s) => (
-                  <li key={s!.id} className="flex justify-between gap-2"><span>{label(s!)}</span><span className="text-muted">{money(s!.priceCents)}</span></li>
+                  <li key={s!.id} className="flex justify-between gap-2"><span>{label(s!)}</span><span className="tabular-nums text-muted">{money(s!.priceCents)}</span></li>
                 ))}
               </ul>
-              <div className="mt-4 flex justify-between border-t border-line pt-4 font-semibold"><span>Total</span><span>{money(holdTotal)}</span></div>
-              <PayPanel eventId={eventId} holdToken={hold.holdToken} />
-              <button type="button" onClick={release} disabled={busy} className="mt-2 min-h-11 w-full rounded-full border border-line font-medium hover:bg-paper">Release seats</button>
+              <div className="stub-rule mt-4 flex justify-between pt-4 text-sm font-semibold"><span>Total</span><span className="tabular-nums">{money(holdTotal)}</span></div>
+              {hold.holdToken === "pending"
+                ? <PendingButton label="Holding your seats…" />
+                : <PayPanel eventId={eventId} holdToken={hold.holdToken} />}
+              <button type="button" onClick={release} disabled={busy} className="btn-quiet mt-2 w-full">Release seats</button>
             </>
           ) : (
             <>
-              <p className="hidden font-mono text-xs uppercase tracking-widest text-muted lg:block">Your selection</p>
+              <p className="eyebrow hidden lg:block">Your selection</p>
               {selected.length === 0 ? (
                 <p className="mt-3 hidden text-sm text-muted lg:block">Pick up to {MAX} seats on the map. We&apos;ll hold them for 10 minutes while you pay.</p>
               ) : (
                 <ul className="mt-3 hidden flex-col gap-1 text-sm lg:flex">
                   {selected.map((id) => byId.get(id)).filter(Boolean).map((s) => (
-                    <li key={s!.id} className="flex justify-between gap-2"><span>{label(s!)}</span><span className="text-muted">{money(s!.priceCents)}</span></li>
+                    <li key={s!.id} className="flex justify-between gap-2"><span>{label(s!)}</span><span className="tabular-nums text-muted">{money(s!.priceCents)}</span></li>
                   ))}
                 </ul>
               )}
-              <div className="flex justify-between font-semibold lg:mt-4 lg:border-t lg:border-line lg:pt-4"><span>Total{selected.length ? ` · ${selected.length} seat${selected.length === 1 ? "" : "s"}` : ""}</span><span>{money(selectedTotal)}</span></div>
+              <div className="flex justify-between text-sm font-semibold lg:stub-rule lg:mt-4 lg:pt-4"><span>Total{selected.length ? ` · ${selected.length} seat${selected.length === 1 ? "" : "s"}` : ""}</span><span className="tabular-nums">{money(selectedTotal)}</span></div>
               {signedIn ? (
-                <button type="button" onClick={holdSeats} disabled={busy || selected.length === 0}
-                  className="mt-3 min-h-11 w-full rounded-full bg-hot font-semibold text-hot-ink transition hover:opacity-90 disabled:opacity-40">
-                  {busy ? "Holding…" : `Hold ${selected.length || ""} seat${selected.length === 1 ? "" : "s"}`}
+                <button type="button" onClick={holdSeats} disabled={busy || selected.length === 0} className="btn-primary mt-4 w-full">
+                  {selected.length ? `Hold ${selected.length} seat${selected.length === 1 ? "" : "s"}` : "Choose seats to hold"}
                 </button>
               ) : (
-                <a href={`/signin?callbackUrl=/events/${eventId}`}
-                  className="mt-3 flex min-h-11 w-full items-center justify-center rounded-full bg-ink font-semibold text-paper hover:opacity-90">
-                  Sign in to hold seats
-                </a>
+                <a href={`/signin?callbackUrl=/events/${eventId}`} className="btn-primary mt-4 w-full">Sign in to hold seats</a>
               )}
             </>
           )}
           {message && (
             <p role={message.tone === "error" ? "alert" : "status"}
-              className={`mt-4 rounded-lg px-3 py-2 text-sm ${message.tone === "error" ? "bg-hot/10 text-hot" : "bg-paper text-muted"}`}>
+              className={`mt-4 rounded-xl px-3 py-2 text-sm ${message.tone === "error" ? "bg-hot-soft text-ink" : "bg-sunk text-muted"}`}>
               {message.text}
             </p>
           )}
@@ -237,17 +246,25 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
   );
 }
 
+export function PendingButton({ label }: { label: string }) {
+  return (
+    <button type="button" disabled aria-busy="true" className="btn-primary mt-4 w-full">
+      <span aria-hidden className="spinner" />{label}
+    </button>
+  );
+}
+
 function Legend() {
   const item = (cls: string, text: string) => (
-    <span className="flex items-center gap-2"><span aria-hidden className={`h-4 w-4 rounded border ${cls}`} />{text}</span>
+    <li className="flex items-center gap-2"><span aria-hidden className={`h-4 w-4 rounded-full border ${cls}`} />{text}</li>
   );
   return (
-    <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-      {item("bg-card border-line", "Available")}
+    <ul className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted" aria-label="Seat legend">
+      {item("bg-card border-line-strong", "Available")}
       {item("bg-hot border-hot", "Selected")}
-      {item("bg-ok border-ok", "Held by you")}
-      {item("bg-held/30 border-held", "Held")}
-      {item("bg-sold border-sold", "Sold")}
-    </div>
+      {item("bg-ink border-ink", "Held by you")}
+      {item("seat-held border-line", "Held by someone else")}
+      {item("seat-sold border-transparent", "Sold")}
+    </ul>
   );
 }

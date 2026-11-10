@@ -41,7 +41,10 @@ export function PayPanel({ eventId, holdToken }: { eventId: string; holdToken: s
       const r = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, idemKey }) });
       const b = await r.json();
       if (!r.ok) setError(b.error ?? "Checkout failed. Try again.");
-      else setCheckout(b);
+      else {
+        setCheckout(b);
+        router.prefetch(`/orders/${b.orderId}`); // the tickets page is ready the moment payment lands
+      }
     } catch {
       setError("Network problem. Your seats are still held, so try again.");
     } finally {
@@ -52,18 +55,23 @@ export function PayPanel({ eventId, holdToken }: { eventId: string; holdToken: s
   async function mockPay() {
     if (!checkout) return;
     setBusy(true);
-    const r = await fetch("/api/mock-pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: checkout.orderId }) });
-    if (r.ok) router.push(`/orders/${checkout.orderId}`);
-    else { setError("Test payment failed. Try again."); setBusy(false); }
+    setError(null);
+    try {
+      const r = await fetch("/api/mock-pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: checkout.orderId }) });
+      if (r.ok) router.push(`/orders/${checkout.orderId}`);
+      else { setError("Test payment failed. Try again."); setBusy(false); }
+    } catch {
+      setError("Network problem. You haven't been charged, so try again."); setBusy(false);
+    }
   }
 
   if (!checkout) {
     return (
       <>
-        <button type="button" onClick={start} disabled={busy} className="mt-4 min-h-11 w-full rounded-full bg-hot font-semibold text-hot-ink hover:opacity-90 disabled:opacity-50">
-          {busy ? "Starting checkout…" : "Continue to payment"}
+        <button type="button" onClick={start} disabled={busy} aria-busy={busy} className="btn-primary mt-4 w-full">
+          {busy && <span aria-hidden className="spinner" />}{busy ? "Starting checkout…" : "Continue to payment"}
         </button>
-        {error && <p role="alert" className="mt-3 rounded-lg bg-hot/10 px-3 py-2 text-sm text-hot">{error}</p>}
+        {error && <p role="alert" className="mt-3 rounded-xl bg-hot-soft px-3 py-2 text-sm">{error}</p>}
       </>
     );
   }
@@ -79,12 +87,12 @@ export function PayPanel({ eventId, holdToken }: { eventId: string; holdToken: s
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-dashed border-line p-3 text-sm">
-      <p className="text-muted">Demo mode: no real card is charged. This simulates the payment provider confirming your payment.</p>
-      <button type="button" onClick={mockPay} disabled={busy} className="mt-3 min-h-11 w-full rounded-full bg-hot font-semibold text-hot-ink hover:opacity-90 disabled:opacity-50">
-        {busy ? "Paying…" : `Pay ${money(checkout.amountMinor)} (test)`}
+    <div className="mt-4 rounded-xl border border-dashed border-line-strong p-3 text-sm">
+      <p className="text-muted">Test mode: no real card is charged. This simulates the payment provider confirming your payment.</p>
+      <button type="button" onClick={mockPay} disabled={busy} aria-busy={busy} className="btn-primary mt-3 w-full">
+        {busy && <span aria-hidden className="spinner" />}{busy ? "Paying…" : `Pay ${money(checkout.amountMinor)} (test)`}
       </button>
-      {error && <p role="alert" className="mt-3 text-hot">{error}</p>}
+      {error && <p role="alert" className="mt-3 rounded-xl bg-hot-soft px-3 py-2">{error}</p>}
     </div>
   );
 }
@@ -106,10 +114,10 @@ function StripeForm({ orderId, amount }: { orderId: string; amount: number }) {
   return (
     <form onSubmit={submit}>
       <PaymentElement />
-      <button type="submit" disabled={!stripe || busy} className="mt-4 min-h-11 w-full rounded-full bg-hot font-semibold text-hot-ink hover:opacity-90 disabled:opacity-50">
-        {busy ? "Processing…" : `Pay ${money(amount)}`}
+      <button type="submit" disabled={!stripe || busy} aria-busy={busy} className="btn-primary mt-4 w-full">
+        {busy && <span aria-hidden className="spinner" />}{busy ? "Processing…" : `Pay ${money(amount)}`}
       </button>
-      {error && <p role="alert" className="mt-3 rounded-lg bg-hot/10 px-3 py-2 text-sm text-hot">{error}</p>}
+      {error && <p role="alert" className="mt-3 rounded-xl bg-hot-soft px-3 py-2 text-sm">{error}</p>}
       <p className="mt-2 text-xs text-muted">Test mode. Use card 4242 4242 4242 4242, any future date and CVC.</p>
     </form>
   );

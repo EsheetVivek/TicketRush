@@ -23,16 +23,16 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
 
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">New here or coming back</p>
-      <h1 className="mt-3 text-4xl font-bold tracking-tight">Sign in to TicketRush</h1>
+      <p className="eyebrow">New here or coming back</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Sign in to TicketRush</h1>
       <p className="mt-3 text-muted">Your account is created the first time you sign in. We only use your name and email.</p>
 
-      {error && <p role="alert" className="mt-6 rounded-lg bg-hot/10 px-4 py-3 text-sm text-hot">{ERRORS[error] ?? "Sign-in didn't work. Try again."}</p>}
+      {error && <p role="alert" className="mt-6 rounded-xl bg-hot-soft px-4 py-3 text-sm">{ERRORS[error] ?? "Sign-in didn't work. Try again."}</p>}
 
       <div className="mt-8 flex flex-col gap-3">
         {providers.map((p) => (
           <form key={p.id} action={async () => { "use server"; await signIn(p.id, { redirectTo: to }); }}>
-            <button type="submit" className="flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-line bg-card font-semibold hover:border-ink">
+            <button type="submit" className="btn-secondary min-h-12 w-full gap-3 text-base">
               <ProviderIcon id={p.id} />
               Continue with {p.name}
             </button>

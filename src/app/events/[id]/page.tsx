@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -15,10 +16,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const session = await auth();
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">{when(event.startsAt)}</p>
-      <h1 className="mt-2 text-4xl font-bold tracking-tight text-balance sm:text-5xl">{event.title}</h1>
-      <p className="mt-2 text-lg text-muted">{event.venue}</p>
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
+      <Link href="/events" className="btn-quiet -ml-3 mb-4 px-3">← All events</Link>
+      <p className="eyebrow">{when(event.startsAt)}</p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{event.title}</h1>
+      <p className="mt-2 text-muted">{event.venue}</p>
       <EventGate eventId={event.id} signedIn={!!session?.user} queueEnabled={event.queueEnabled} />
     </main>
   );
