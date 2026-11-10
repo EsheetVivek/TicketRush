@@ -30,6 +30,8 @@ export async function POST(req: Request) {
 
   // The mock gateway lives in our database, so its time counts as db time here.
   const hook = await t.db(gw.completePayment(order.gatewayRef), "gateway");
+  // Fault injection: the buyer is charged but the webhook never arrives. The reconciler settles it.
+  if (gw.dropsWebhook()) return json({ result: "webhook_lost" }, { status: 202, headers: t.headers() });
   const result = await t.db(handlePaymentEvent(db, gw, await gw.parseWebhook(hook.body, hook.headers)), "fulfil");
   return json({ result }, { headers: t.headers() });
 }

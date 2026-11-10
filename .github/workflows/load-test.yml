@@ -1,0 +1,74 @@
+name: Load test (10k users)
+# $0 load test: the production build, Postgres and k6 all run on one GitHub-hosted runner.
+# 10,000 virtual users browse while 3,000 signed-in buyers race for 500 seats through a payment
+# gateway mock that fails on purpose. Then the reconciler runs and the money/seat invariants are
+# checked in the database. Results are published as-is (see docs/results/m7-load-test.md).
+on:
+  workflow_dispatch:
+    inputs:
+      browse_vus: { description: "Browsing virtual users", default: "10000" }
+      buyers: { description: "Concurrent buyers", default: "3000" }
+      faults: { description: "MOCK_FAULTS", default: "failBefore=0.03,failAfter=0.03,dropWebhook=0.05,latencyMs=100" }
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ticketrush
+      AUTH_SECRET: loadtest-only-not-a-secret
+      AUTH_TRUST_HOST: "true"
+      FIELD_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      TICKET_SIGNING_SECRET: loadtest-only-not-a-secret
+      MOCK_FAULTS: ${{ inputs.faults }}
+      DB_POOL_MAX: "25"  # per instance; 3 instances
+      NODE_ENV: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - name: Postgres (max_connections raised for the test)
+        run: |
+          docker run -d --name pg -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ticketrush postgres:16 -c max_connections=200 -c shared_buffers=512MB
+          for i in $(seq 1 30); do docker exec pg pg_isready -U postgres && break; sleep 1; done
+      - run: npm ci --include=dev
+      - run: npm run db:migrate && npm run db:seed
+      - run: NODE_ENV=production npm run build
+      - name: Runner hardware
+        run: |
+          { echo "## Runner"; echo; echo "- CPU: $(nproc) × $(lscpu | grep 'Model name' | sed 's/Model name:\s*//')"; echo "- RAM: $(free -h | awk '/Mem:/{print $2}')"; } | tee -a "$GITHUB_STEP_SUMMARY" > loadtest-runner.md
+      - name: Create buyers and open the drop
+        run: npx tsx loadtest/setup.mts ${{ inputs.buyers }}
+      - name: Start 3 app instances behind nginx
+        run: |
+          for p in 3001 3002 3003; do nohup npx next start -p $p > app-$p.log 2>&1 & done
+          for p in 3001 3002 3003; do for i in $(seq 1 30); do curl -sf http://localhost:$p/api/health > /dev/null && break; sleep 1; done; done
+          sudo nginx -c "$PWD/loadtest/nginx.conf"
+          curl -sf http://localhost:3000/api/health
+      - name: Install k6
+        run: |
+          curl -sSL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz
+          sudo mv k6-v0.54.0-linux-amd64/k6 /usr/local/bin/k6
+          ulimit -n 65535 || true
+      - name: Run k6
+        run: |
+          ulimit -n 65535 || true
+          k6 run --quiet -e BASE_URL=http://localhost:3000 -e EVENT_ID=6f1c1d0e-5a3b-4c55-9a0e-6b2d1e000001 \
+            -e BROWSE_VUS=${{ inputs.browse_vus }} -e BUYERS=${{ inputs.buyers }} loadtest/k6.js || echo "k6 thresholds not all met (results are still published)"
+      - name: Reconcile and check invariants
+        run: npx tsx loadtest/verify.mts
+      - name: Summarise
+        if: always()
+        run: node loadtest/summarise.mjs >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-results
+          path: |
+            loadtest/summary.json
+            loadtest/verify.json
+            loadtest-runner.md
+            app-*.log

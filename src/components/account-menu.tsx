@@ -7,7 +7,7 @@ import { PendingLink } from "@/components/pending-link";
 import { SubmitButton } from "@/components/submit-button";
 import { signOutAction } from "@/app/actions/auth";
 
-type Me = { signedIn: boolean; name: string | null } | null;
+type Me = { signedIn: boolean; name: string | null; organizer?: boolean } | null;
 
 /**
  * The signed-in parts of the header, loaded in the browser. Keeping the session lookup out of the
@@ -30,6 +30,7 @@ export function HeaderNav({ mobile = false }: { mobile?: boolean }) {
     { href: "/events", label: "Events" },
     { href: "/how-it-works", label: "How it works" },
     ...(me?.signedIn ? [{ href: "/account/orders", label: "My orders" }] : []),
+    ...(me?.organizer ? [{ href: "/organizer", label: "Box office" }] : []),
   ];
   return <NavPill items={nav} className={mobile ? "w-max" : "hidden sm:flex"} />;
 }

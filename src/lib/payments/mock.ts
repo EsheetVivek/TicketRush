@@ -12,6 +12,8 @@ export interface FaultPlan {
   failBefore?: number;
   /** Probability that the call succeeds at the gateway but the response is lost (timeout after). */
   failAfter?: number;
+  /** Probability that a completed payment's webhook is never delivered (the reconciler must catch it). */
+  dropWebhook?: number;
   /** Extra latency per call in ms. */
   latencyMs?: number;
   random?: () => number;
@@ -24,6 +26,11 @@ export interface FaultPlan {
 export class MockGateway implements PaymentGateway {
   readonly name = "mock" as const;
   constructor(private db: DB, private webhookSecret: string, private faults: FaultPlan = {}) {}
+
+  /** True when this payment's webhook should be "lost" (fault injection only). */
+  dropsWebhook(): boolean {
+    return (this.faults.random ?? Math.random)() < (this.faults.dropWebhook ?? 0);
+  }
 
   private async chaos<T>(fn: () => Promise<T>): Promise<T> {
     const rnd = this.faults.random ?? Math.random;

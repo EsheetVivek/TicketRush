@@ -33,3 +33,56 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+
+  security:
+    # Runs the production build and attacks it: the end-to-end security suite, then an OWASP ZAP
+    # baseline scan. Fails on any High-risk ZAP alert. The full ZAP report is kept as an artifact.
+    needs: check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres, POSTGRES_DB: ticketrush }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ticketrush
+      AUTH_SECRET: ci-only-not-a-secret
+      AUTH_TRUST_HOST: "true"
+      FIELD_ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      TICKET_SIGNING_SECRET: ci-only-not-a-secret
+      CRON_SECRET: ci-only-cron-secret
+      E2E_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      - run: npm ci
+      - run: npm run db:migrate && npm run db:seed
+      - run: npm run build
+      - name: Start app
+        run: |
+          nohup npx next start -p 3000 > app.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health && break; sleep 1; done
+      - name: Security suite (attacks against the running app)
+        run: npx vitest run -c vitest.e2e.config.ts
+      - name: OWASP ZAP baseline scan
+        run: |
+          mkdir -p zap && chmod 777 zap
+          docker run --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:3000 -r zap-report.html -J zap-report.json -I || true
+          node -e '
+            const r = require("./zap/zap-report.json");
+            const alerts = r.site.flatMap((s) => s.alerts);
+            const by = (code) => alerts.filter((a) => a.riskcode === code);
+            const line = (a) => `- [${a.riskdesc}] ${a.name} (${a.count} instances)`;
+            const out = ["## OWASP ZAP baseline", "", `High: ${by("3").length} · Medium: ${by("2").length} · Low: ${by("1").length} · Info: ${by("0").length}`, "", ...alerts.map(line)].join("\n");
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out + "\n");
+            console.log(out);
+            if (by("3").length) { console.error("High-risk ZAP alerts found"); process.exit(1); }'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: zap-report, path: zap/ }
+      - if: failure()
+        run: tail -50 app.log

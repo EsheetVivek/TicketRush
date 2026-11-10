@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isOrganizer } from "@/lib/organizer";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function GET() {
   const session = await auth();
   const user = session?.user;
   return Response.json(
-    { signedIn: !!user, name: user ? (user.name ?? user.email ?? null) : null },
+    { signedIn: !!user, name: user ? (user.name ?? user.email ?? null) : null, organizer: isOrganizer(session) },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

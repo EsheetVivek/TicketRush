@@ -31,3 +31,18 @@ describe("Server-Timing", () => {
     expect(t.headers({ "Retry-After": "5" })).toMatchObject({ "Retry-After": "5", "Server-Timing": expect.any(String) });
   });
 });
+
+import { cached } from "@/lib/microcache";
+describe("microcache", () => {
+  it("coalesces concurrent loads and expires after the TTL", async () => {
+    let calls = 0;
+    const load = () => new Promise<number>((r) => setTimeout(() => r(++calls), 10));
+    const [a, b] = await Promise.all([cached("k", 1000, load, 0), cached("k", 1000, load, 5)]);
+    expect([a, b, calls]).toEqual([1, 1, 1]);
+    expect(await cached("k", 1000, load, 2000)).toBe(2);
+  });
+  it("does not cache failures", async () => {
+    await expect(cached("f", 1000, () => Promise.reject(new Error("x")), 0)).rejects.toThrow();
+    expect(await cached("f", 1000, async () => 7, 1)).toBe(7);
+  });
+});
