@@ -12,3 +12,11 @@ Adapted from [Watermelon UI](https://ui.watermelon.sh) (open source, Tailwind + 
 | `faq-accordion.tsx` | `faq-1` | Motion accordion, no Radix dependency |
 | `inline-notice.tsx` | `inline-toast` | Status and error messages with the same spring transitions |
 | Shimmer on `.btn-primary` | `shimmer-button` | Implemented in CSS so every primary button shares it |
+
+## Gig-poster redesign (2026-11-10)
+
+| Piece | Source | Licence |
+| --- | --- | --- |
+| `poster/marquee.tsx` | Magic UI "marquee" (magicui.design) | MIT |
+| `poster/spin-sticker.tsx` | Inspired by React Bits "circular text" (reactbits.dev) | MIT |
+| Anton display font (`src/fonts/anton.woff2`) | Google Fonts / Fontsource | SIL OFL 1.1 |

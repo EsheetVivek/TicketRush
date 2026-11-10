@@ -6,40 +6,48 @@
  * (4.5:1) in both themes; --muted on --paper is the lowest at ~5.3:1 (light) / ~7:1 (dark).
  */
 :root {
-  --paper: #f8f7f4;
-  --card: #ffffff;
-  --sunk: #f1efea;      /* recessed areas: stage strip, table header */
-  --ink: #1d1c1a;
-  --muted: #66625b;
-  --line: #e8e5df;
-  --line-strong: #d5d1c9;
-  --hot: #c7363a;       /* primary action + selected only */
-  --hot-ink: #ffffff;
-  --hot-soft: #fbeceb;
-  --ok: #2f7a55;
-  --ok-soft: #e8f3ec;
-  --warn: #8a5a00;
-  --warn-soft: #fbf1dc;
-  --shadow: 0 1px 2px rgb(29 28 26 / 0.04), 0 4px 16px rgb(29 28 26 / 0.04);
+  /* Gig-poster palette: newsprint paper, letterpress ink, vermilion for the action, a yellow
+     "sticker" highlight. Text pairs meet WCAG AA in both themes. */
+  --paper: #f1e9da;
+  --card: #fbf6ec;
+  --sunk: #e7ddca;
+  --ink: #15120e;
+  --muted: #5b5347;
+  --line: #d9cdb6;
+  --line-strong: #15120e;
+  --hot: #c8321f;
+  --hot-ink: #fffaf1;
+  --hot-soft: #f6d9cf;
+  --acid: #f3c32f;
+  --acid-ink: #15120e;
+  --ok: #2c6e47;
+  --ok-soft: #dcead9;
+  --warn: #7f5200;
+  --warn-soft: #f4e3bd;
+  --shadow: 4px 4px 0 var(--ink);
+  --grain-opacity: 0.08;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #141311;
-    --card: #1b1a17;
-    --sunk: #23211e;
-    --ink: #edebe6;
-    --muted: #a39e95;
-    --line: #2b2925;
-    --line-strong: #3b3833;
-    --hot: #f0625c;
-    --hot-ink: #1d0b0a;
-    --hot-soft: #3a1f1d;
-    --ok: #6cc596;
-    --ok-soft: #1c2b22;
-    --warn: #e3b55a;
-    --warn-soft: #2e2617;
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px rgb(0 0 0 / 0.2);
+    --paper: #110f0c;
+    --card: #1b1813;
+    --sunk: #25211a;
+    --ink: #f1e9da;
+    --muted: #b3a995;
+    --line: #363026;
+    --line-strong: #f1e9da;
+    --hot: #ff5b45;
+    --hot-ink: #170805;
+    --hot-soft: #3b1b14;
+    --acid: #f3c32f;
+    --acid-ink: #15120e;
+    --ok: #74c793;
+    --ok-soft: #1b2a20;
+    --warn: #e9b85a;
+    --warn-soft: #2f2716;
+    --shadow: 4px 4px 0 #4a4034;
+    --grain-opacity: 0.12;
     color-scheme: dark;
   }
 }
@@ -59,50 +67,70 @@
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
+  --color-acid: var(--acid);
+  --color-acid-ink: var(--acid-ink);
+  --font-display: var(--font-anton), "Arial Narrow", Impact, sans-serif;
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --shadow-soft: var(--shadow);
 }
 
 body {
+  position: relative;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-feature-settings: "ss01";
 }
 
-:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 6px; }
+:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
+
+/* Print grain over everything, like a screen-printed poster. Purely decorative. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: var(--grain-opacity); mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@media (prefers-color-scheme: dark) { body::before { mix-blend-mode: screen; } }
 
 /* Shared building blocks so every page uses the same buttons, cards and labels. */
 @layer components {
-  .eyebrow { @apply font-mono text-xs uppercase tracking-[0.14em] text-muted; }
-  .card { @apply rounded-3xl border border-line bg-card shadow-soft; }
-  /* Primary action: solid accent with the Watermelon "shimmer-button" sweep on hover. */
-  .btn-primary { @apply relative isolate inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-full px-5 text-sm font-medium transition-[box-shadow,filter] duration-300 disabled:cursor-not-allowed bg-hot text-hot-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(0_0_0/0.08)] hover:shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_6px_18px_-6px_var(--hot)] disabled:opacity-50; }
-  .btn-primary::after { content: ""; position: absolute; inset: 0; z-index: -1; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.22), transparent); transition: transform 700ms ease; }
+  .display { font-family: var(--font-display); font-weight: 400; text-transform: uppercase; letter-spacing: 0.005em; line-height: 0.92; }
+  .eyebrow { @apply font-mono text-xs uppercase tracking-[0.16em] text-muted; }
+  .card { @apply rounded-xl border-2 border-ink bg-card; box-shadow: var(--shadow); }
+  /* Buttons press into the page: hard offset shadow that collapses on :active. */
+  .btn-primary { @apply relative isolate inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-lg border-2 border-ink bg-hot px-5 text-sm font-semibold uppercase tracking-wide text-hot-ink transition-[transform,box-shadow] duration-150 disabled:cursor-not-allowed disabled:opacity-50; box-shadow: 3px 3px 0 var(--ink); }
+  .btn-primary:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+  .btn-primary:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+  .btn-primary::after { content: ""; position: absolute; inset: 0; z-index: -1; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.25), transparent); transition: transform 700ms ease; }
   .btn-primary:hover:not(:disabled)::after { transform: translateX(100%); }
-  /* Tactile surface from Watermelon "continuous-tabs". */
-  .pill-surface { @apply border border-line; background: linear-gradient(to bottom, var(--card), var(--sunk)); box-shadow: inset 0 -2px 4px rgb(0 0 0 / 0.05), inset 0 1px 0 rgb(255 255 255 / 0.7), 0 4px 12px rgb(0 0 0 / 0.03); }
-  .btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed border border-line-strong bg-card text-ink hover:bg-sunk disabled:opacity-50; }
-  .btn-quiet { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed text-muted hover:bg-sunk hover:text-ink; }
-  .badge { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium; }
-  .stub-rule { @apply border-t border-dashed border-line-strong; }
-  .link { @apply underline decoration-line-strong underline-offset-4 hover:decoration-ink; }
+  .pill-surface { @apply border-2 border-ink bg-card; box-shadow: 3px 3px 0 var(--ink); }
+  .btn-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border-2 border-ink bg-card px-5 text-sm font-semibold text-ink transition-[transform,box-shadow,background-color] duration-150 hover:bg-acid hover:text-acid-ink disabled:cursor-not-allowed disabled:opacity-50; box-shadow: 3px 3px 0 var(--ink); }
+  .btn-secondary:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+  .btn-quiet { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold text-muted transition-colors duration-150 hover:bg-sunk hover:text-ink disabled:cursor-not-allowed; }
+  .badge { @apply inline-flex items-center gap-1.5 rounded-md border border-current px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide; }
+  .stub-rule { @apply border-t-2 border-dashed border-line; }
+  .link { @apply underline decoration-2 decoration-hot underline-offset-4 hover:bg-acid hover:text-acid-ink; }
+  .sticker { @apply inline-block rounded-md bg-acid px-2 text-acid-ink; transform: rotate(-2deg); }
+  /* Ticket notch: round bites out of both sides at the perforation line. */
+  .notched { --notch: 14px; -webkit-mask: radial-gradient(circle var(--notch) at 0 var(--notch-y, 50%), #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle var(--notch) at 100% var(--notch-y, 50%), #0000 98%, #000) right / 51% 100% no-repeat; mask: radial-gradient(circle var(--notch) at 0 var(--notch-y, 50%), #0000 98%, #000) left / 51% 100% no-repeat, radial-gradient(circle var(--notch) at 100% var(--notch-y, 50%), #0000 98%, #000) right / 51% 100% no-repeat; }
 }
+
+/* Marquee (adapted from Magic UI "marquee", MIT). */
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(calc(-100% - var(--gap))); } }
+.marquee-track { animation: marquee var(--duration, 40s) linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
 
 /* Seat states: held and sold use quiet fills and patterns rather than loud colours. */
 .seat-held {
-  background-image: repeating-linear-gradient(135deg, var(--line-strong) 0 1.5px, transparent 1.5px 5px);
+  background-image: repeating-linear-gradient(135deg, var(--muted) 0 1.5px, transparent 1.5px 5px);
   background-color: var(--card);
 }
-.seat-sold { background-color: var(--line-strong); }
+.seat-sold { background-color: var(--ink); opacity: 0.85; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spinner { width: 1em; height: 1em; border-radius: 9999px; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; }
 
-@media (prefers-color-scheme: dark) {
-  .pill-surface { box-shadow: inset 0 -2px 4px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.05), 0 10px 20px rgb(0 0 0 / 0.35); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; scroll-behavior: auto !important; }

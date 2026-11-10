@@ -23,12 +23,12 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
   return (
     <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <p className="eyebrow">Account</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">My orders</h1>
+      <h1 className="mt-2 text-4xl display sm:text-6xl">My orders</h1>
       <p className="mt-2 text-muted">Every order you&apos;ve placed, newest first. Times are in IST.</p>
 
       {stats.orders === 0 ? (
         <section className="card mt-10 flex flex-col items-start gap-4 p-8 sm:p-12">
-          <h2 className="text-xl font-semibold tracking-tight">No orders yet</h2>
+          <h2 className="display text-3xl">No orders yet</h2>
           <p className="max-w-md text-muted">When you buy tickets they&apos;ll show up here, with their QR codes one tap away.</p>
           <PendingLink href="/events" className="btn-primary">Browse events</PendingLink>
         </section>
@@ -103,9 +103,9 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="min-w-0 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-line sm:p-6">
+    <div className="min-w-0 rounded-xl bg-card p-4 border-2 border-ink shadow-soft sm:p-6">
       <dt className="text-xs text-muted sm:text-sm">{label}</dt>
-      <dd className="mt-2 truncate text-lg font-semibold tracking-tight tabular-nums sm:text-2xl">{value}</dd>
+      <dd className="display mt-2 truncate text-2xl tabular-nums sm:text-4xl">{value}</dd>
       <dd className="mt-1 hidden text-xs text-muted sm:block">{note}</dd>
     </div>
   );

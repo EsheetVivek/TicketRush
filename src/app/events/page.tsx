@@ -11,7 +11,7 @@ export default async function Events() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
       <p className="eyebrow">On sale now</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Events</h1>
+      <h1 className="mt-2 text-4xl display sm:text-6xl">Events</h1>
       <p className="mt-2 max-w-xl text-muted">Pick your seats, hold them for 10 minutes, and pay. If anything fails on the way, you&apos;re refunded automatically.</p>
       {events.length ? (
         <ul className="mt-10 grid gap-6 sm:grid-cols-2">

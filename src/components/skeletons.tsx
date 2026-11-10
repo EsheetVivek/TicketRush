@@ -11,7 +11,7 @@ export function PageSkeleton({ cards = 2, title = "Loading" }: { cards?: number;
       <Bar className="mt-4 h-4 w-96 max-w-full" />
       <div className="mt-10 grid gap-6 sm:grid-cols-2">
         {Array.from({ length: cards }, (_, i) => (
-          <div key={i} className="overflow-hidden rounded-3xl bg-card ring-1 ring-line">
+          <div key={i} className="overflow-hidden rounded-xl bg-card border-2 border-ink">
             <div className="h-44 animate-pulse bg-sunk sm:h-52" />
             <div className="space-y-3 p-5"><Bar className="h-5 w-2/3" /><Bar className="h-3 w-1/2" /><Bar className="h-3 w-1/3" /></div>
           </div>

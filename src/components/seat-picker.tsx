@@ -195,7 +195,7 @@ export function SeatPicker({ eventId, signedIn, withQueue = false }: { eventId: 
       </section>
 
       <aside className="sticky bottom-4 z-10 lg:bottom-auto lg:top-8 lg:self-start">
-        <div className="rounded-3xl bg-card p-4 shadow-xl shadow-black/5 ring-1 ring-line sm:p-6 lg:shadow-soft">
+        <div className="rounded-xl bg-card p-4 shadow-xl shadow-black/5 border-2 border-ink sm:p-6 lg:shadow-soft">
           <CheckoutSteps current={hold ? "hold" : "select"} withQueue={withQueue} className="mb-5 hidden lg:block" />
           {hold ? (
             <>

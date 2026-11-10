@@ -34,11 +34,11 @@ export function EventGate({ eventId, signedIn, queueEnabled }: { eventId: string
   const progress = startRank && q ? Math.min(100, Math.round(((startRank - q.ahead) / startRank) * 100)) : 0;
 
   return (
-    <section className="mt-8 rounded-3xl bg-card p-6 shadow-soft ring-1 ring-line sm:p-10" aria-live="polite">
+    <section className="mt-8 rounded-xl bg-card p-6 border-2 border-ink shadow-soft sm:p-10" aria-live="polite">
       <CheckoutSteps current="queue" withQueue className="mb-8 max-w-md" />
       {!signedIn ? (
         <>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">This drop is busy, so there&apos;s a line.</h2>
+          <h2 className="mt-3 text-2xl display">This drop is busy, so there&apos;s a line.</h2>
           <p className="mt-3 max-w-xl text-muted">Sign in to join. Places are first come, first served, and refreshing never loses your spot.</p>
           <a href={`/signin?callbackUrl=/events/${eventId}`} className="btn-primary mt-6 px-6">Sign in to join the line</a>
         </>
@@ -46,11 +46,11 @@ export function EventGate({ eventId, signedIn, queueEnabled }: { eventId: string
         <div className="mt-4 h-24 animate-pulse rounded-xl bg-sunk" aria-label="Joining the line" />
       ) : (
         <>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight">You&apos;re in line.</h2>
+          <h2 className="mt-3 text-2xl display">You&apos;re in line.</h2>
           <div className="mt-6 grid gap-6 sm:grid-cols-3">
-            <div><p className="text-sm text-muted">People ahead of you</p><p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{q.ahead.toLocaleString("en-IN")}</p></div>
-            <div><p className="text-sm text-muted">Estimated wait</p><p className="mt-1 text-3xl font-semibold tracking-tight">{fmt(q.etaSeconds)}</p></div>
-            <div><p className="text-sm text-muted">Your place</p><p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">#{q.rank?.toLocaleString("en-IN")}</p></div>
+            <div><p className="text-sm text-muted">People ahead of you</p><p className="display mt-1 text-5xl tabular-nums">{q.ahead.toLocaleString("en-IN")}</p></div>
+            <div><p className="text-sm text-muted">Estimated wait</p><p className="display mt-1 text-5xl">{fmt(q.etaSeconds)}</p></div>
+            <div><p className="text-sm text-muted">Your place</p><p className="display mt-1 text-5xl tabular-nums text-hot">#{q.rank?.toLocaleString("en-IN")}</p></div>
           </div>
           <div className="mt-8">
             <QueueProgress progress={progress} labels={q.ahead === 0 ? ["You're next", "Opening the seat map…"] : [

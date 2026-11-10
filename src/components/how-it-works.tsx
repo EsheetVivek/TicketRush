@@ -39,7 +39,7 @@ export function HowItWorks() {
               className={cn("relative flex min-h-14 w-full items-center gap-4 rounded-2xl px-4 text-left transition-colors", i === active ? "text-ink" : "text-muted hover:text-ink")}>
               {i === active && (
                 <motion.span layoutId="hiw-active" aria-hidden transition={reduce ? { duration: 0 } : { type: "spring", bounce: 0, duration: 0.4 }}
-                  className="absolute inset-0 rounded-2xl bg-card shadow-soft ring-1 ring-line" />
+                  className="absolute inset-0 rounded-2xl bg-card border-2 border-ink shadow-soft" />
               )}
               <span className={cn("relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full font-mono text-xs transition-colors", i === active ? "bg-ink text-paper" : "bg-sunk")}>{i + 1}</span>
               <span className="relative z-10 font-medium">{s.title}</span>
@@ -48,7 +48,7 @@ export function HowItWorks() {
         ))}
       </ol>
 
-      <div className="rounded-3xl bg-card p-6 shadow-soft ring-1 ring-line sm:p-8">
+      <div className="rounded-xl bg-card p-6 border-2 border-ink shadow-soft sm:p-8">
         <div className="flex gap-1.5" aria-hidden>
           {STEPS.map((s, i) => (
             <span key={s.title} className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-sunk">
@@ -64,7 +64,7 @@ export function HowItWorks() {
               exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, filter: "blur(6px)" }} transition={{ type: "spring", bounce: 0, duration: 0.45 }}>
               <span className="flex size-12 items-center justify-center rounded-2xl bg-hot-soft text-hot"><S.icon aria-hidden className="size-5" /></span>
               <p className="mt-5 font-mono text-xs text-muted">Step {active + 1} of {STEPS.length}</p>
-              <h3 className="mt-1 text-2xl font-semibold tracking-tight">{S.title}</h3>
+              <h3 className="display mt-2 text-4xl sm:text-5xl">{S.title}</h3>
               <p className="mt-3 max-w-prose leading-relaxed text-muted">{S.body}</p>
             </motion.div>
           </AnimatePresence>

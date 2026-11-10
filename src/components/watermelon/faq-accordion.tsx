@@ -16,7 +16,7 @@ export function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
         const isOpen = open === i;
         const panel = `${base}-p${i}`;
         return (
-          <li key={it.q} className="overflow-hidden rounded-2xl bg-card ring-1 ring-line">
+          <li key={it.q} className="overflow-hidden rounded-2xl bg-card border-2 border-ink">
             <button type="button" aria-expanded={isOpen} aria-controls={panel} onClick={() => setOpen(isOpen ? null : i)}
               className="flex min-h-14 w-full items-center justify-between gap-4 px-5 text-left font-medium sm:px-6">
               {it.q}

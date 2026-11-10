@@ -32,7 +32,7 @@ function Poster({ e, big = false }: { e: PosterEvent; big?: boolean }) {
         ))}
       </svg>
       <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 to-transparent p-4 sm:p-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/80">{when(new Date(e.startsAt))}</p>
+        <p className="inline-block -rotate-1 bg-acid px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-acid-ink">{when(new Date(e.startsAt))}</p>
         {big && <p className="mt-1 text-sm text-white/85">{e.venue}</p>}
       </div>
     </div>
@@ -70,19 +70,22 @@ export function EventPosterCard({ e }: { e: PosterEvent }) {
     <>
       <motion.button ref={openerRef} type="button" layoutId={id} transition={spring} onClick={() => setOpen(true)}
         aria-haspopup="dialog" aria-label={`${e.title}, ${when(new Date(e.startsAt))}. Show details`}
-        className="group flex h-full w-full flex-col overflow-hidden rounded-3xl bg-card text-left shadow-soft ring-1 ring-line transition-shadow hover:shadow-lg">
-        <motion.div layoutId={`${id}-poster`} transition={spring} className="h-44 w-full overflow-hidden sm:h-52">
-          <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.03]"><Poster e={e} /></div>
+        className="group relative flex h-full w-full flex-col overflow-hidden rounded-xl border-2 border-ink bg-card text-left shadow-soft transition-[transform,box-shadow] duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_var(--ink)] active:translate-x-1 active:translate-y-1 active:shadow-none">
+        <motion.div layoutId={`${id}-poster`} transition={spring} className="h-44 w-full overflow-hidden border-b-2 border-dashed border-ink sm:h-52">
+          <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]"><Poster e={e} /></div>
         </motion.div>
+        {/* Ticket perforation notches */}
+        <span aria-hidden className="absolute -left-[11px] top-44 z-10 size-5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper sm:top-52" />
+        <span aria-hidden className="absolute -right-[11px] top-44 z-10 size-5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper sm:top-52" />
         <div className="flex flex-1 flex-col gap-3 p-5">
           <div className="flex items-start justify-between gap-3">
-            <motion.h3 layoutId={`${id}-title`} transition={spring} className="text-lg font-semibold tracking-tight">{e.title}</motion.h3>
-            <span className="badge shrink-0 bg-sunk text-ink">{left === 0 ? "Sold out" : e.queue ? "Waiting room" : "On sale"}</span>
+            <motion.h3 layoutId={`${id}-title`} transition={spring} className="display text-3xl">{e.title}</motion.h3>
+            <span className={`badge shrink-0 ${left === 0 ? "bg-ink text-paper" : e.queue ? "bg-acid text-acid-ink" : "bg-ok-soft text-ok"}`}>{left === 0 ? "Sold out" : e.queue ? "Waiting room" : "On sale"}</span>
           </div>
           <p className="flex items-center gap-1.5 text-sm text-muted"><MapPin aria-hidden className="size-3.5" />{e.venue}</p>
           <div aria-hidden className="stub-rule mt-auto" />
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">From <span className="font-semibold text-ink">{money(e.fromCents)}</span></span>
+            <span className="text-muted">From <span className="display text-2xl text-ink">{money(e.fromCents)}</span></span>
             <span className="font-mono text-xs tabular-nums text-muted">{left} of {e.total} left</span>
           </div>
         </div>
@@ -92,9 +95,9 @@ export function EventPosterCard({ e }: { e: PosterEvent }) {
         {open && (
           <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-8">
             <motion.div aria-hidden initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpen(false)}
-              className="absolute inset-0 bg-paper/75 backdrop-blur-md" />
+              className="absolute inset-0 bg-ink/40 backdrop-blur-sm" />
             <motion.div role="dialog" aria-modal="true" aria-labelledby={`${id}-dlg-title`} layoutId={id} transition={spring}
-              className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-card shadow-2xl ring-1 ring-line">
+              className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-card border-2 border-ink shadow-[6px_6px_0_var(--ink)]">
               <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label="Close details"
                 className="absolute right-3 top-3 z-20 flex size-11 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-sm hover:bg-black/45">
                 <X aria-hidden className="size-4" />
@@ -103,7 +106,7 @@ export function EventPosterCard({ e }: { e: PosterEvent }) {
                 <Poster e={e} big />
               </motion.div>
               <div className="overflow-y-auto p-6 sm:p-8">
-                <motion.h3 id={`${id}-dlg-title`} layoutId={`${id}-title`} transition={spring} className="text-2xl font-semibold tracking-tight sm:text-3xl">{e.title}</motion.h3>
+                <motion.h3 id={`${id}-dlg-title`} layoutId={`${id}-title`} transition={spring} className="display text-4xl sm:text-5xl">{e.title}</motion.h3>
                 <motion.div initial={reduce ? false : { opacity: 0, y: 16, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                   exit={{ opacity: 0 }} transition={{ type: "spring", bounce: 0, duration: 0.35, delay: reduce ? 0 : 0.1 }}>
                   <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-2">

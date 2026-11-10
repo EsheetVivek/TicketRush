@@ -26,7 +26,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   return (
     <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
       <p className="eyebrow">New here or coming back</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight">Sign in to TicketRush</h1>
+      <h1 className="mt-3 text-4xl display">Sign in to TicketRush</h1>
       <p className="mt-3 text-muted">Your account is created the first time you sign in. We only use your name and email.</p>
 
       {error && <p role="alert" className="mt-6 rounded-xl bg-hot-soft px-4 py-3 text-sm">{ERRORS[error] ?? "Sign-in didn't work. Try again."}</p>}

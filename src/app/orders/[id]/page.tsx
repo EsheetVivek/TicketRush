@@ -9,6 +9,7 @@ import { events, orders, seats, tickets } from "@/db/schema";
 import { money, when } from "@/lib/format";
 import { OrderStatusPoller } from "@/components/order-status";
 import { CheckoutSteps } from "@/components/watermelon/checkout-steps";
+import { TicketStub } from "@/components/poster/ticket-stub";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <OrderStatusPoller orderId={order.id} done={done} />
       {order.status !== "expired" && <CheckoutSteps current={order.status === "ticketed" ? "tickets" : "pay"} className="mb-10 max-w-md" />}
       <p className="eyebrow">Order {order.id.slice(0, 8)} · {money(order.amountCents)}</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" aria-live="polite">{copy.title}</h1>
+      <h1 className="mt-2 text-4xl display sm:text-6xl" aria-live="polite">{copy.title}</h1>
       <p className="mt-2 text-muted">{copy.body}</p>
       <div className="card mt-8 p-6">
         <p className="font-semibold">{event.title}</p>
@@ -55,20 +56,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {issued.length > 0 && (
-        <ul className="mt-6 grid gap-4 sm:grid-cols-2">
-          {issued.map((t, i) => (
-            <li key={t.id} className="card overflow-hidden">
-              <div className="p-6">
-                <p className="eyebrow">{t.section}</p>
-                <p className="mt-1 text-xl font-semibold tracking-tight">Row {t.row} · Seat {t.number}</p>
-              </div>
-              <div aria-hidden className="stub-rule mx-6" />
-              <div className="m-4 rounded-xl bg-white p-4">
-                {/* eslint-disable-next-line @next/next/no-img-element -- data URL, nothing to optimise */}
-                <img className="mx-auto w-44" src={qrs[i]} alt={`QR code for row ${t.row} seat ${t.number}`} width={176} height={176} />
-              </div>
-            </li>
-          ))}
+        <ul className="mt-8 grid gap-8 sm:grid-cols-2">
+          {issued.map((t, i) => <TicketStub key={t.id} index={i} section={t.section} row={t.row} number={t.number} qr={qrs[i]} />)}
         </ul>
       )}
       <div className="mt-10 flex flex-wrap gap-3">
