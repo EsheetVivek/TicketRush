@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { events, orders, seats, tickets } from "@/db/schema";
 import { money, when } from "@/lib/format";
 import { OrderStatusPoller } from "@/components/order-status";
+import { CheckoutSteps } from "@/components/watermelon/checkout-steps";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   return (
     <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
       <OrderStatusPoller orderId={order.id} done={done} />
+      {order.status !== "expired" && <CheckoutSteps current={order.status === "ticketed" ? "tickets" : "pay"} className="mb-10 max-w-md" />}
       <p className="eyebrow">Order {order.id.slice(0, 8)} · {money(order.amountCents)}</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl" aria-live="polite">{copy.title}</h1>
       <p className="mt-2 text-muted">{copy.body}</p>

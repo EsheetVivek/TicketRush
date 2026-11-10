@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/db";
 import { formatSeats, getOrderHistory, HISTORY_PAGE_SIZE, shortRef, type HistoryRow } from "@/lib/history";
 import { istDateTime, money } from "@/lib/format";
-import { CopyRef } from "@/components/copy-ref";
+import { CopyConfirm } from "@/components/watermelon/copy-confirm";
 import { StatusBadge } from "@/components/status-badge";
 
 export const metadata: Metadata = { title: "My orders" };
@@ -33,7 +33,7 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
         </section>
       ) : (
         <>
-          <dl className="mt-10 grid gap-4 sm:grid-cols-3">
+          <dl className="mt-10 grid grid-cols-3 gap-2 sm:gap-4">
             <Stat label="Total spent" value={money(stats.spentCents)} note="on ticketed orders" />
             <Stat label="Tickets held" value={stats.ticketsHeld.toLocaleString("en-IN")} note={`across ${stats.orders} order${stats.orders === 1 ? "" : "s"}`} />
             <Stat label="Refunds" value={stats.refunds.toLocaleString("en-IN")} note={stats.refundedCents ? `${money(stats.refundedCents)} returned` : "none needed"} />
@@ -58,7 +58,7 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
                     <td className="px-4 py-3">{formatSeats(o.seats)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{money(o.amountCents)}</td>
                     <td className="whitespace-nowrap px-4 py-3"><StatusBadge status={o.status} /></td>
-                    <td className="px-4 py-1">{o.gatewayRef ? <CopyRef value={o.gatewayRef} short={shortRef(o.gatewayRef)} /> : <span className="text-muted">—</span>}</td>
+                    <td className="px-4 py-1">{o.gatewayRef ? <CopyConfirm value={o.gatewayRef} display={shortRef(o.gatewayRef)} /> : <span className="text-muted">—</span>}</td>
                     <td className="whitespace-nowrap px-4 py-1 text-right"><Action o={o} /></td>
                   </tr>
                 ))}
@@ -80,7 +80,7 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
                 </div>
                 <div className="stub-rule mt-4 flex flex-wrap items-center justify-between gap-2 pt-2">
                   <StatusBadge status={o.status} />
-                  {o.gatewayRef && <CopyRef value={o.gatewayRef} short={shortRef(o.gatewayRef)} />}
+                  {o.gatewayRef && <CopyConfirm value={o.gatewayRef} display={shortRef(o.gatewayRef)} />}
                 </div>
                 <div className="mt-2"><Action o={o} block /></div>
               </li>
@@ -102,10 +102,10 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
 
 function Stat({ label, value, note }: { label: string; value: string; note: string }) {
   return (
-    <div className="card p-6">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
-      <dd className="mt-1 text-xs text-muted">{note}</dd>
+    <div className="min-w-0 rounded-3xl bg-card p-4 shadow-soft ring-1 ring-line sm:p-6">
+      <dt className="text-xs text-muted sm:text-sm">{label}</dt>
+      <dd className="mt-2 truncate text-lg font-semibold tracking-tight tabular-nums sm:text-2xl">{value}</dd>
+      <dd className="mt-1 hidden text-xs text-muted sm:block">{note}</dd>
     </div>
   );
 }

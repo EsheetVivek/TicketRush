@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { money } from "@/lib/format";
 import { PayPanel } from "@/components/pay-panel";
+import { CheckoutSteps } from "@/components/watermelon/checkout-steps";
+import { InlineNotice } from "@/components/watermelon/inline-notice";
 
 type Status = "available" | "held" | "sold";
 interface Seat { id: string; section: string; row: string; number: number; priceCents: number; status: Status }
@@ -11,7 +13,7 @@ interface Hold { holdToken: string; seatIds: string[]; expiresAt: string }
 const MAX = 6;
 const POLL_MS = 3000;
 
-export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: boolean }) {
+export function SeatPicker({ eventId, signedIn, withQueue = false }: { eventId: string; signedIn: boolean; withQueue?: boolean }) {
   const [seats, setSeats] = useState<Seat[] | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [hold, setHold] = useState<Hold | null>(null);
@@ -175,7 +177,7 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
                               aria-label={`${label(s)}, ${money(s.priceCents)}, ${isMine ? "held by you" : s.status}`}
                               title={`${label(s)} · ${money(s.priceCents)}`}
                               onClick={() => toggle(s.id)}
-                              className={`h-7 w-7 shrink-0 rounded-full border text-[10px] font-medium tabular-nums transition-colors duration-100 ${cls}`}
+                              className={`h-7 w-7 shrink-0 rounded-full border text-[10px] font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 active:scale-90 ${cls}`}
                             >
                               {s.number}
                             </button>
@@ -193,7 +195,8 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
       </section>
 
       <aside className="sticky bottom-4 z-10 lg:bottom-auto lg:top-8 lg:self-start">
-        <div className="card p-4 shadow-lg shadow-black/5 sm:p-6 lg:shadow-soft">
+        <div className="rounded-3xl bg-card p-4 shadow-xl shadow-black/5 ring-1 ring-line sm:p-6 lg:shadow-soft">
+          <CheckoutSteps current={hold ? "hold" : "select"} withQueue={withQueue} className="mb-5 hidden lg:block" />
           {hold ? (
             <>
               <p className="eyebrow">Held for you</p>
@@ -233,12 +236,7 @@ export function SeatPicker({ eventId, signedIn }: { eventId: string; signedIn: b
               )}
             </>
           )}
-          {message && (
-            <p role={message.tone === "error" ? "alert" : "status"}
-              className={`mt-4 rounded-xl px-3 py-2 text-sm ${message.tone === "error" ? "bg-hot-soft text-ink" : "bg-sunk text-muted"}`}>
-              {message.text}
-            </p>
-          )}
+          <InlineNotice message={message} />
         </div>
         <p className="mt-3 hidden px-1 text-xs text-muted lg:block">Availability refreshes every few seconds. A seat can only ever be held by one person.</p>
       </aside>
